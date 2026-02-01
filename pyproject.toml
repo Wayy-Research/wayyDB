@@ -1,0 +1,105 @@
+[build-system]
+requires = ["scikit-build-core>=0.5", "pybind11>=2.13"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "wayy-db"
+version = "0.1.0"
+description = "High-performance columnar time-series database with kdb+-like functionality"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Wayy Research", email = "dev@wayy.io"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: C++",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+keywords = [
+    "database",
+    "time-series",
+    "columnar",
+    "kdb",
+    "as-of-join",
+    "quantitative-finance",
+    "trading",
+    "numpy",
+    "high-performance",
+]
+dependencies = [
+    "numpy>=1.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "pandas>=2.0",
+    "polars>=0.20",
+    "hypothesis>=6.0",
+    "mypy>=1.0",
+    "ruff>=0.1",
+]
+bench = [
+    "pytest-benchmark",
+    "memory-profiler",
+    "psutil",
+]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme",
+    "myst-parser",
+]
+
+[project.urls]
+Homepage = "https://github.com/wayy-research/wayydb"
+Documentation = "https://wayydb.readthedocs.io"
+
+[tool.scikit-build]
+cmake.args = ["-DWAYY_BUILD_PYTHON=ON", "-DWAYY_BUILD_TESTS=OFF"]
+wheel.packages = ["python/wayy_db"]
+install.components = ["python"]
+
+[tool.cibuildwheel]
+build-verbosity = 1
+# Build for Python 3.9-3.13, including free-threaded 3.13
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp313t-*"
+skip = "*-musllinux_i686"
+
+# Free-threaded Python 3.13 (no-GIL) configuration
+[tool.cibuildwheel.free-threaded]
+# Enable free-threaded builds on all platforms
+build = "cp313t-*"
+
+[[tool.cibuildwheel.overrides]]
+# For free-threaded builds, ensure we're using the right Python
+select = "cp313t-*"
+inherit.environment = "append"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true

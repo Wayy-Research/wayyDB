@@ -1,0 +1,12 @@
+# Render Blueprint for WayyDB API
+# Note: Free tier uses ephemeral storage (data resets on redeploy)
+# Upgrade to paid tier with disk for persistence
+services:
+  - type: web
+    name: wayydb-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: WAYY_DATA_PATH
+        value: /data/wayydb
