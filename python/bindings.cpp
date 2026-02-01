@@ -126,6 +126,7 @@ PYBIND11_MODULE(_core, m, py::mod_gil_not_used()) {
         .def("table", &Database::table, py::return_value_policy::reference_internal)
         .def("__getitem__", &Database::table, py::return_value_policy::reference_internal)
         .def("create_table", &Database::create_table, py::return_value_policy::reference_internal)
+        .def("add_table", &Database::add_table)
         .def("drop_table", &Database::drop_table)
         .def("save", &Database::save)
         .def("refresh", &Database::refresh);
