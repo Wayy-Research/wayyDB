@@ -1,19 +1,14 @@
 # WayyDB API Docker Image for Hugging Face Spaces
-FROM python:3.12-slim
+FROM python:3.12
 
-# Install build dependencies (including Python headers for pybind11)
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    ninja-build \
-    git \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Install only essential build tools via apt (g++ for C++ compilation)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Create non-root user (required by HF Spaces)
 RUN useradd -m -u 1000 user
-
-# Create data directory before switching user
 RUN mkdir -p /home/user/data/wayydb && chown -R user:user /home/user
 
 USER user
@@ -24,13 +19,15 @@ ENV HOME=/home/user \
 
 WORKDIR $HOME/app
 
+# Install build tools via pip (more reliable than apt on HF)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir cmake ninja scikit-build-core pybind11 numpy build
+
 # Copy source
 COPY --chown=user . .
 
-# Build and install wayyDB (verbose for debugging)
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir build scikit-build-core pybind11 numpy cmake ninja && \
-    pip install --no-cache-dir -v . && \
+# Build and install wayyDB
+RUN pip install --no-cache-dir -v . && \
     pip install --no-cache-dir -r api/requirements.txt
 
 EXPOSE 7860
