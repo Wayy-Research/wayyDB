@@ -1,3 +1,12 @@
+---
+title: WayyDB API
+emoji: ⚡
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+---
+
 <p align="center">
   <h1 align="center">WayyDB</h1>
   <p align="center">
