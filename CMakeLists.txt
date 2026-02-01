@@ -66,8 +66,9 @@ if(WAYY_BUILD_PYTHON)
     pybind11_add_module(_core python/bindings.cpp)
     target_link_libraries(_core PRIVATE wayy_core)
 
-    # Install Python module to the correct location
-    install(TARGETS _core DESTINATION wayy_db)
+    # Install Python module to the package directory
+    # scikit-build-core will place this in the wayy_db package
+    install(TARGETS _core DESTINATION wayy_db COMPONENT python)
 endif()
 
 # Tests

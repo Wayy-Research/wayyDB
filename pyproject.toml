@@ -69,7 +69,6 @@ Documentation = "https://wayydb.readthedocs.io"
 [tool.scikit-build]
 cmake.args = ["-DWAYY_BUILD_PYTHON=ON", "-DWAYY_BUILD_TESTS=OFF"]
 wheel.packages = ["python/wayy_db"]
-install.components = ["python"]
 
 [tool.cibuildwheel]
 build-verbosity = 1
