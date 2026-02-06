@@ -8,6 +8,8 @@ A kdb+-like database with Python-first API, featuring:
 - Columnar storage with sorted indices
 """
 
+from __future__ import annotations
+
 from wayy_db._core import (
     # Core classes
     Database,
