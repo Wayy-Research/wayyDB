@@ -39,6 +39,8 @@ WayyDB is a C++ time-series database with Python bindings, designed for quantita
 - **SIMD Aggregations** — Sum, avg, min, max accelerated with AVX2 intrinsics
 - **Window Functions** — Moving average, EMA, rolling std with O(n) complexity
 - **Persistent Storage** — Tables saved as memory-mapped files for instant loading
+- **Streaming API** — FastAPI REST + WebSocket endpoints for real-time tick ingestion and subscription
+- **Pluggable Pub/Sub** — InMemory (default) or Redis backend for distributed deployments
 
 ## Installation
 
@@ -279,8 +281,8 @@ make -j$(nproc)
 # C++ tests (31 tests)
 cd build && ctest --output-on-failure
 
-# Python tests (17 tests)
-PYTHONPATH=python pytest tests/python -v
+# Python tests (81 tests)
+pytest tests/python -v
 ```
 
 ## Comparison with Alternatives
@@ -297,12 +299,14 @@ PYTHONPATH=python pytest tests/python -v
 
 ## Roadmap
 
+- [x] Streaming ingestion API (WebSocket + REST)
+- [x] Pluggable pub/sub (InMemory + Redis)
+- [x] Multi-deployment Docker (Fly.io, Render, HF Spaces)
 - [ ] String column type with dictionary encoding
 - [ ] LZ4 compression for columns
 - [ ] Parallel aggregations
 - [ ] More join types (inner, left, full)
 - [ ] Query optimizer
-- [ ] Streaming ingestion API
 
 ## License
 
