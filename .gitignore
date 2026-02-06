@@ -40,6 +40,9 @@ env/
 compile_commands.json
 *.pyi.bak
 
+# Data files (local database)
+data/
+
 # Temporary files
 *.tmp
 *.temp

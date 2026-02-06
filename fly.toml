@@ -1,25 +1,46 @@
 # Fly.io configuration for WayyDB API
+# Streaming timeseries database with WebSocket support
+
 app = 'wayydb-api'
-primary_region = 'ord'
+primary_region = 'iad'  # Washington DC - same region as wayyfin-api
 
 [build]
+  dockerfile = 'Dockerfile'
 
 [env]
   WAYY_DATA_PATH = '/data/wayydb'
   PORT = '8080'
+  # Streaming configuration
+  FLUSH_INTERVAL = '1.0'       # Flush to disk every 1 second
+  MAX_BUFFER_SIZE = '10000'    # Max ticks in memory before force flush
+  BROADCAST_INTERVAL = '0.05'  # Broadcast to subscribers every 50ms
+  # REDIS_URL = ''             # Optional: set via `fly secrets set REDIS_URL=redis://...`
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = 'stop'
+  auto_stop_machines = false   # Keep running for streaming
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1     # Always have one instance for streaming
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'connections'
+    hard_limit = 1000          # Support many WebSocket connections
+    soft_limit = 800
+
+[[http_service.checks]]
+  grace_period = '30s'
+  interval = '30s'
+  method = 'GET'
+  path = '/health'
+  timeout = '10s'
 
 [mounts]
   source = 'wayydb_data'
   destination = '/data'
 
 [[vm]]
-  memory = '512mb'
+  memory = '1024mb'            # More memory for streaming buffers
   cpu_kind = 'shared'
-  cpus = 1
+  cpus = 2                     # 2 CPUs for concurrent operations
