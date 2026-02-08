@@ -1,0 +1,630 @@
+{
+  "version": "0.1.0",
+  "timestamp": "2026-02-08T03:03:30Z",
+  "system": {
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "cpu_count": "20",
+    "python": "3.10.12",
+    "numpy": "2.2.2",
+    "wayy_db": "0.1.0",
+    "pandas": "2.3.2",
+    "polars": "1.35.2",
+    "duckdb": "1.4.4",
+    "ram_gb": "43.1",
+    "cpu_model": "12th Gen Intel(R) Core(TM) i7-12700H"
+  },
+  "benchmarks": [
+    {
+      "name": "CREATE TABLE",
+      "description": "Create table with 100,000 rows, 7 columns (OHLCV + symbol)",
+      "n_rows": 100000,
+      "results": [
+        {
+          "library": "wayydb",
+          "operation": "create_table",
+          "n_rows": 100000,
+          "median_ms": 1.069,
+          "median_ns": 1069161,
+          "all_runs_ns": [
+            1560456,
+            1503182,
+            1069161,
+            879872,
+            724371
+          ],
+          "extra": {}
+        },
+        {
+          "library": "pandas",
+          "operation": "create_table",
+          "n_rows": 100000,
+          "median_ms": 2.431,
+          "median_ns": 2430851,
+          "all_runs_ns": [
+            2411040,
+            2256199,
+            2430851,
+            2587350,
+            2814301
+          ],
+          "extra": {}
+        },
+        {
+          "library": "polars",
+          "operation": "create_table",
+          "n_rows": 100000,
+          "median_ms": 0.039,
+          "median_ns": 38791,
+          "all_runs_ns": [
+            136864,
+            49510,
+            38791,
+            29796,
+            33559
+          ],
+          "extra": {}
+        },
+        {
+          "library": "duckdb",
+          "operation": "create_table",
+          "n_rows": 100000,
+          "median_ms": 26.714,
+          "median_ns": 26713560,
+          "all_runs_ns": [
+            27352634,
+            26713560,
+            26130765,
+            25104460,
+            29445818
+          ],
+          "extra": {}
+        }
+      ]
+    },
+    {
+      "name": "COLUMN ACCESS",
+      "description": "Access 'close' column and get numpy array (100,000 rows)",
+      "n_rows": 100000,
+      "results": [
+        {
+          "library": "wayydb",
+          "operation": "column_access",
+          "n_rows": 100000,
+          "median_ms": 0.001,
+          "median_ns": 735,
+          "all_runs_ns": [
+            1491,
+            763,
+            735,
+            701,
+            627
+          ],
+          "extra": {
+            "note": "zero-copy"
+          }
+        },
+        {
+          "library": "pandas",
+          "operation": "column_access",
+          "n_rows": 100000,
+          "median_ms": 0.002,
+          "median_ns": 2055,
+          "all_runs_ns": [
+            4708,
+            2262,
+            2055,
+            1851,
+            1720
+          ],
+          "extra": {}
+        },
+        {
+          "library": "polars",
+          "operation": "column_access",
+          "n_rows": 100000,
+          "median_ms": 0.001,
+          "median_ns": 1283,
+          "all_runs_ns": [
+            27233,
+            2165,
+            1283,
+            1094,
+            1100
+          ],
+          "extra": {}
+        }
+      ]
+    },
+    {
+      "name": "AGGREGATIONS",
+      "description": "sum + mean + min + max + std on 'close' (100,000 rows)",
+      "n_rows": 100000,
+      "results": [
+        {
+          "library": "wayydb",
+          "operation": "aggregations",
+          "n_rows": 100000,
+          "median_ms": 0.31,
+          "median_ns": 309895,
+          "all_runs_ns": [
+            291367,
+            297690,
+            309895,
+            314091,
+            313660
+          ],
+          "extra": {
+            "note": "SIMD AVX2"
+          }
+        },
+        {
+          "library": "numpy",
+          "operation": "aggregations",
+          "n_rows": 100000,
+          "median_ms": 0.144,
+          "median_ns": 143741,
+          "all_runs_ns": [
+            189007,
+            151522,
+            143741,
+            142446,
+            142434
+          ],
+          "extra": {}
+        },
+        {
+          "library": "pandas",
+          "operation": "aggregations",
+          "n_rows": 100000,
+          "median_ms": 0.508,
+          "median_ns": 507993,
+          "all_runs_ns": [
+            730790,
+            537351,
+            500015,
+            507993,
+            479476
+          ],
+          "extra": {}
+        },
+        {
+          "library": "polars",
+          "operation": "aggregations",
+          "n_rows": 100000,
+          "median_ms": 0.124,
+          "median_ns": 123855,
+          "all_runs_ns": [
+            128631,
+            123855,
+            124670,
+            123495,
+            123582
+          ],
+          "extra": {}
+        },
+        {
+          "library": "duckdb",
+          "operation": "aggregations",
+          "n_rows": 100000,
+          "median_ms": 1.656,
+          "median_ns": 1656237,
+          "all_runs_ns": [
+            1905798,
+            1656237,
+            1652963,
+            1718074,
+            1508468
+          ],
+          "extra": {}
+        }
+      ]
+    },
+    {
+      "name": "AS-OF JOIN",
+      "description": "As-of join: 1,000 trades x 1,000 quotes, 10 symbols",
+      "n_rows": 1000,
+      "results": [
+        {
+          "library": "wayydb",
+          "operation": "asof_join",
+          "n_rows": 1000,
+          "median_ms": 0.101,
+          "median_ns": 101220,
+          "all_runs_ns": [
+            101220,
+            107240,
+            105942,
+            94329,
+            90862
+          ],
+          "extra": {
+            "n_quotes": 1000
+          }
+        },
+        {
+          "library": "pandas",
+          "operation": "asof_join",
+          "n_rows": 1000,
+          "median_ms": 0.632,
+          "median_ns": 631958,
+          "all_runs_ns": [
+            835459,
+            620057,
+            631958,
+            609566,
+            670406
+          ],
+          "extra": {
+            "n_quotes": 1000
+          }
+        },
+        {
+          "library": "polars",
+          "operation": "asof_join",
+          "n_rows": 1000,
+          "median_ms": 6.941,
+          "median_ns": 6940722,
+          "all_runs_ns": [
+            7465158,
+            7241679,
+            6940722,
+            6304633,
+            6559672
+          ],
+          "extra": {
+            "n_quotes": 1000
+          }
+        },
+        {
+          "library": "duckdb",
+          "operation": "asof_join",
+          "n_rows": 1000,
+          "median_ms": 3.029,
+          "median_ns": 3028700,
+          "all_runs_ns": [
+            2867561,
+            3028700,
+            3471093,
+            4092621,
+            2921568
+          ],
+          "extra": {
+            "n_quotes": 1000
+          }
+        }
+      ]
+    },
+    {
+      "name": "AS-OF JOIN",
+      "description": "As-of join: 10,000 trades x 10,000 quotes, 10 symbols",
+      "n_rows": 10000,
+      "results": [
+        {
+          "library": "wayydb",
+          "operation": "asof_join",
+          "n_rows": 10000,
+          "median_ms": 1.098,
+          "median_ns": 1097791,
+          "all_runs_ns": [
+            1097791,
+            1142519,
+            980376,
+            963328,
+            1158199
+          ],
+          "extra": {
+            "n_quotes": 10000
+          }
+        },
+        {
+          "library": "pandas",
+          "operation": "asof_join",
+          "n_rows": 10000,
+          "median_ms": 1.51,
+          "median_ns": 1510493,
+          "all_runs_ns": [
+            1387899,
+            1561262,
+            1471819,
+            2120323,
+            1510493
+          ],
+          "extra": {
+            "n_quotes": 10000
+          }
+        },
+        {
+          "library": "polars",
+          "operation": "asof_join",
+          "n_rows": 10000,
+          "median_ms": 8.184,
+          "median_ns": 8183642,
+          "all_runs_ns": [
+            9234178,
+            7787207,
+            9194079,
+            8183642,
+            7656861
+          ],
+          "extra": {
+            "n_quotes": 10000
+          }
+        },
+        {
+          "library": "duckdb",
+          "operation": "asof_join",
+          "n_rows": 10000,
+          "median_ms": 9.129,
+          "median_ns": 9129124,
+          "all_runs_ns": [
+            9129124,
+            8844928,
+            21502646,
+            8122244,
+            9845371
+          ],
+          "extra": {
+            "n_quotes": 10000
+          }
+        }
+      ]
+    },
+    {
+      "name": "AS-OF JOIN",
+      "description": "As-of join: 100,000 trades x 100,000 quotes, 10 symbols",
+      "n_rows": 100000,
+      "results": [
+        {
+          "library": "wayydb",
+          "operation": "asof_join",
+          "n_rows": 100000,
+          "median_ms": 11.59,
+          "median_ns": 11590477,
+          "all_runs_ns": [
+            11107957,
+            10654126,
+            11816384,
+            11591712,
+            11590477
+          ],
+          "extra": {
+            "n_quotes": 100000
+          }
+        },
+        {
+          "library": "pandas",
+          "operation": "asof_join",
+          "n_rows": 100000,
+          "median_ms": 6.331,
+          "median_ns": 6330560,
+          "all_runs_ns": [
+            7322557,
+            5635883,
+            6457927,
+            5867084,
+            6330560
+          ],
+          "extra": {
+            "n_quotes": 100000
+          }
+        },
+        {
+          "library": "polars",
+          "operation": "asof_join",
+          "n_rows": 100000,
+          "median_ms": 8.748,
+          "median_ns": 8748251,
+          "all_runs_ns": [
+            9661396,
+            8179014,
+            8588942,
+            8748251,
+            8933389
+          ],
+          "extra": {
+            "n_quotes": 100000
+          }
+        },
+        {
+          "library": "duckdb",
+          "operation": "asof_join",
+          "n_rows": 100000,
+          "median_ms": 69.081,
+          "median_ns": 69081007,
+          "all_runs_ns": [
+            71524530,
+            70475723,
+            69081007,
+            65799239,
+            62219258
+          ],
+          "extra": {
+            "n_quotes": 100000
+          }
+        }
+      ]
+    },
+    {
+      "name": "WINDOW FUNCTIONS",
+      "description": "mavg(20) + ema(0.1) + mstd(20) on 'close' (100,000 rows)",
+      "n_rows": 100000,
+      "results": [
+        {
+          "library": "wayydb",
+          "operation": "window_functions",
+          "n_rows": 100000,
+          "median_ms": 3.895,
+          "median_ns": 3894663,
+          "all_runs_ns": [
+            4224890,
+            4074523,
+            3894663,
+            3567440,
+            3675884
+          ],
+          "extra": {}
+        },
+        {
+          "library": "pandas",
+          "operation": "window_functions",
+          "n_rows": 100000,
+          "median_ms": 2.511,
+          "median_ns": 2510962,
+          "all_runs_ns": [
+            2443957,
+            2507691,
+            2664833,
+            2510962,
+            2552185
+          ],
+          "extra": {}
+        },
+        {
+          "library": "polars",
+          "operation": "window_functions",
+          "n_rows": 100000,
+          "median_ms": 2.125,
+          "median_ns": 2124668,
+          "all_runs_ns": [
+            2379835,
+            2200456,
+            2124668,
+            2042287,
+            2027564
+          ],
+          "extra": {}
+        }
+      ]
+    },
+    {
+      "name": "PERSISTENCE",
+      "description": "Save to disk, then load (100,000 rows, 7 columns)",
+      "n_rows": 100000,
+      "results": [
+        {
+          "library": "wayydb",
+          "operation": "persistence_save",
+          "n_rows": 100000,
+          "median_ms": 10.46,
+          "median_ns": 10460484,
+          "all_runs_ns": [
+            2571835,
+            6221363,
+            11567424,
+            10877240,
+            10460484
+          ],
+          "extra": {}
+        },
+        {
+          "library": "wayydb",
+          "operation": "persistence_load",
+          "n_rows": 100000,
+          "median_ms": 0.078,
+          "median_ns": 77971,
+          "all_runs_ns": [
+            98084,
+            77971,
+            96122,
+            74772,
+            73643
+          ],
+          "extra": {
+            "note": "mmap zero-copy"
+          }
+        },
+        {
+          "library": "pandas",
+          "operation": "persistence_save",
+          "n_rows": 100000,
+          "median_ms": 39.793,
+          "median_ns": 39793496,
+          "all_runs_ns": [
+            41909471,
+            32615086,
+            33721747,
+            44093713,
+            39793496
+          ],
+          "extra": {}
+        },
+        {
+          "library": "pandas",
+          "operation": "persistence_load",
+          "n_rows": 100000,
+          "median_ms": 4.34,
+          "median_ns": 4340437,
+          "all_runs_ns": [
+            4741457,
+            3595500,
+            4340437,
+            4884303,
+            3375066
+          ],
+          "extra": {}
+        },
+        {
+          "library": "polars",
+          "operation": "persistence_save",
+          "n_rows": 100000,
+          "median_ms": 20.713,
+          "median_ns": 20713209,
+          "all_runs_ns": [
+            20713209,
+            19633515,
+            19520010,
+            26122758,
+            38377352
+          ],
+          "extra": {}
+        },
+        {
+          "library": "polars",
+          "operation": "persistence_load",
+          "n_rows": 100000,
+          "median_ms": 9.028,
+          "median_ns": 9027746,
+          "all_runs_ns": [
+            9006197,
+            9343769,
+            9013025,
+            9027746,
+            9994733
+          ],
+          "extra": {}
+        },
+        {
+          "library": "duckdb",
+          "operation": "persistence_save",
+          "n_rows": 100000,
+          "median_ms": 11.487,
+          "median_ns": 11487098,
+          "all_runs_ns": [
+            16917758,
+            20042551,
+            11397449,
+            11332796,
+            11487098
+          ],
+          "extra": {}
+        },
+        {
+          "library": "duckdb",
+          "operation": "persistence_load",
+          "n_rows": 100000,
+          "median_ms": 51.191,
+          "median_ns": 51191141,
+          "all_runs_ns": [
+            48789697,
+            49124749,
+            53181826,
+            54905262,
+            51191141
+          ],
+          "extra": {}
+        }
+      ]
+    }
+  ]
+}

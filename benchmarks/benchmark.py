@@ -280,7 +280,8 @@ def bench_create_table(n: int, compare: List[str]) -> BenchmarkGroup:
         # DuckDB: create a relation from dict
         def duck_create():
             conn = duckdb.connect()
-            conn.execute("CREATE TABLE bench AS SELECT * FROM ?", [pd.DataFrame(data) if PANDAS_AVAILABLE else None])
+            df = pd.DataFrame(data)
+            conn.execute("CREATE TABLE bench AS SELECT * FROM df")
             conn.close()
 
         if PANDAS_AVAILABLE:
