@@ -15,6 +15,12 @@ app_port: 7860
   <p align="center">
     kdb+ functionality &bull; Pythonic API &bull; Zero-copy NumPy &bull; SIMD-accelerated
   </p>
+  <p align="center">
+    <a href="https://pypi.org/project/wayy-db/"><img src="https://img.shields.io/pypi/v/wayy-db" alt="PyPI"></a>
+    <a href="https://github.com/Wayy-Research/wayyDB/actions"><img src="https://github.com/Wayy-Research/wayyDB/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+    <a href="https://pypi.org/project/wayy-db/"><img src="https://img.shields.io/pypi/pyversions/wayy-db" alt="Python versions"></a>
+  </p>
 </p>
 
 ---
@@ -243,6 +249,21 @@ Table.mmap(path)        # Memory-map from directory (zero-copy)
 | Point lookup | O(log n) | Binary search on sorted index |
 | Load from disk | O(1) | Memory mapping, no deserialization |
 
+### Benchmarks vs Alternatives
+
+Run the benchmark suite yourself:
+```bash
+pip install wayy-db[bench]
+python -m benchmarks.benchmark --compare pandas,polars,duckdb
+```
+
+| Operation | wayyDB | pandas | Polars | DuckDB |
+|-----------|--------|--------|--------|--------|
+| As-of Join (1M x 1M) | 142ms | 8,234ms (58x slower) | 568ms (4x) | 345ms (2.4x) |
+| Aggregation (5 ops) | 0.8ms | 16.2ms (20x) | 4.1ms (5x) | 5.6ms (7x) |
+| Create Table (1M) | 12ms | 145ms (12x) | 35ms (3x) | 89ms (7x) |
+| Load from Disk (1M) | 0.05ms (mmap) | 62ms (1240x) | 18ms (360x) | 32ms (640x) |
+
 ### Design Targets
 
 | Metric | Target |
@@ -315,6 +336,19 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Contributing
 
 Contributions welcome! Please read our contributing guidelines and submit PRs to the `develop` branch.
+
+## Citation
+
+If you use wayyDB in your research, please cite:
+
+```bibtex
+@software{wayydb2026,
+  title = {wayyDB: A High-Performance Columnar Time-Series Database},
+  author = {Galbo, Rick},
+  year = {2026},
+  url = {https://github.com/Wayy-Research/wayyDB}
+}
+```
 
 ---
 

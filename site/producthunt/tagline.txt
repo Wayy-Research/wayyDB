@@ -1,0 +1,1 @@
+10x faster time-series queries from Python. C++ engine, zero-copy NumPy.

@@ -61,15 +61,21 @@ dev = [
     "ruff>=0.1",
 ]
 bench = [
+    "pandas>=2.0",
+    "polars>=0.20",
+    "duckdb>=0.9",
+    "psutil>=5.0",
     "pytest-benchmark",
     "memory-profiler",
-    "psutil",
 ]
 docs = [
     "sphinx>=7.0",
     "sphinx-rtd-theme",
     "myst-parser",
 ]
+
+[project.scripts]
+wayy-db-bench = "benchmarks.benchmark:main"
 
 [project.urls]
 Homepage = "https://github.com/wayy-research/wayydb"
