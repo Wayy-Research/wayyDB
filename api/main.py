@@ -13,7 +13,7 @@ import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from typing import Optional, List
+from typing import Any, Optional, List
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -30,6 +30,9 @@ from api.streaming import (
     stop_streaming,
     StreamingManager,
 )
+
+# Import KV store
+from api.kvstore import get_kv_store
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -55,11 +58,16 @@ async def lifespan(app: FastAPI):
     streaming.set_database(db)
     await start_streaming()
 
+    # Start KV store eviction
+    kv = get_kv_store()
+    await kv.start()
+
     logger.info(f"WayyDB started with data path: {data_path}")
 
     yield
 
     # Cleanup
+    await kv.stop()
     await stop_streaming()
     if db:
         db.save()
@@ -718,3 +726,110 @@ async def pubsub_stats():
     streaming = get_streaming_manager()
     stats = streaming.get_stats()
     return stats.get("pubsub", {"backend": "none", "info": "PubSub not configured"})
+
+
+# --- KV Store API ---
+
+class KVSetRequest(BaseModel):
+    """Request body for setting a KV entry."""
+    value: Any
+    ttl: Optional[float] = None  # TTL in seconds, None = no expiry
+
+
+@app.post("/kv/{key}")
+async def kv_set(key: str, req: KVSetRequest):
+    """Set a key-value pair with optional TTL."""
+    kv = get_kv_store()
+    kv.set(key, req.value, ttl=req.ttl)
+    return {"key": key, "ttl": req.ttl}
+
+
+@app.get("/kv/{key}")
+async def kv_get(key: str):
+    """Get a value by key."""
+    kv = get_kv_store()
+    value = kv.get(key)
+    if value is None:
+        raise HTTPException(404, f"Key '{key}' not found or expired")
+    return {"key": key, "value": value}
+
+
+@app.delete("/kv/{key}")
+async def kv_delete(key: str):
+    """Delete a key."""
+    kv = get_kv_store()
+    existed = kv.delete(key)
+    if not existed:
+        raise HTTPException(404, f"Key '{key}' not found")
+    return {"deleted": key}
+
+
+@app.get("/kv")
+async def kv_list(pattern: Optional[str] = None):
+    """List keys, optionally filtered by glob pattern."""
+    kv = get_kv_store()
+    keys = kv.keys(pattern)
+    return {"keys": keys, "count": len(keys)}
+
+
+@app.get("/kv-stats")
+async def kv_stats():
+    """Get KV store statistics."""
+    kv = get_kv_store()
+    return kv.stats()
+
+
+# --- General Pub/Sub API ---
+
+class PubSubPublishRequest(BaseModel):
+    """Request body for publishing to a channel."""
+    data: Any
+
+
+@app.post("/pubsub/publish/{channel}")
+async def pubsub_publish(channel: str, req: PubSubPublishRequest):
+    """Publish a message to a channel."""
+    streaming = get_streaming_manager()
+    # Use the streaming manager's broadcast mechanism
+    # For general pub/sub, we broadcast to WebSocket subscribers
+    await streaming.broadcast_to_channel(channel, req.data)
+    return {"channel": channel, "published": True}
+
+
+@app.websocket("/ws/pubsub")
+async def ws_pubsub(websocket: WebSocket):
+    """
+    General pub/sub WebSocket endpoint.
+
+    Send subscription request after connecting:
+    {"action": "subscribe", "channels": ["prices:*", "trades"]}
+
+    Receives messages as:
+    {"channel": "prices:BTC-USD", "data": {...}}
+    """
+    await websocket.accept()
+    streaming = get_streaming_manager()
+
+    subscribed_channels: list[str] = []
+
+    logger.info("PubSub WebSocket connected")
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+
+            action = data.get("action")
+            if action == "subscribe":
+                channels = data.get("channels", [])
+                subscribed_channels.extend(channels)
+                await websocket.send_json({
+                    "type": "subscribed",
+                    "channels": subscribed_channels,
+                })
+            elif action == "ping":
+                await websocket.send_json({"type": "pong"})
+
+    except WebSocketDisconnect:
+        logger.info("PubSub WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"PubSub WebSocket error: {e}")
