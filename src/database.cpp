@@ -13,6 +13,14 @@ Database::Database(const std::string& path) : path_(path) {
     if (!path_.empty()) {
         fs::create_directories(path_);
         scan_tables();
+
+        // Initialize WAL
+        wal_ = std::make_unique<WriteAheadLog>(path_);
+
+        // Replay any unprocessed WAL entries from a crash
+        if (wal_->has_entries()) {
+            wal_->replay(*this);
+        }
     }
 }
 
@@ -120,6 +128,11 @@ void Database::refresh() {
 
     std::unique_lock lock(mutex_);
     scan_tables();
+}
+
+void Database::checkpoint() {
+    if (!wal_) return;
+    wal_->checkpoint(*this);
 }
 
 std::string Database::table_path(const std::string& name) const {

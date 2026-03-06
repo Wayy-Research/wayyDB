@@ -14,9 +14,11 @@ enum class DType : uint8_t {
     Timestamp = 2,  // Nanoseconds since Unix epoch
     Symbol = 3,     // Interned string index
     Bool = 4,
+    String = 5,     // Arrow-style variable-length UTF-8 (offsets + data)
+    Decimal6 = 6,   // Int64 with implied 6 decimal places (max ±9.2T)
 };
 
-/// Get the size in bytes for a given type
+/// Get the size in bytes for a given type (0 for variable-length types)
 constexpr size_t dtype_size(DType dtype) {
     switch (dtype) {
         case DType::Int64:     return sizeof(int64_t);
@@ -24,8 +26,15 @@ constexpr size_t dtype_size(DType dtype) {
         case DType::Timestamp: return sizeof(int64_t);
         case DType::Symbol:    return sizeof(uint32_t);
         case DType::Bool:      return sizeof(uint8_t);
+        case DType::String:    return 0;  // Variable-length, use StringColumn
+        case DType::Decimal6:  return sizeof(int64_t);  // Stored as int64
     }
     return 0;  // Unreachable
+}
+
+/// Check if a dtype is fixed-width
+constexpr bool dtype_is_fixed(DType dtype) {
+    return dtype != DType::String;
 }
 
 /// Convert DType to string representation
@@ -36,6 +45,8 @@ constexpr std::string_view dtype_to_string(DType dtype) {
         case DType::Timestamp: return "timestamp";
         case DType::Symbol:    return "symbol";
         case DType::Bool:      return "bool";
+        case DType::String:    return "string";
+        case DType::Decimal6:  return "decimal6";
     }
     return "unknown";
 }

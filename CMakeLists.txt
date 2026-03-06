@@ -24,9 +24,12 @@ endif()
 add_library(wayy_core STATIC
     src/types.cpp
     src/column.cpp
+    src/string_column.cpp
+    src/hash_index.cpp
     src/table.cpp
     src/database.cpp
     src/mmap_file.cpp
+    src/wal.cpp
     src/ops/aggregations.cpp
     src/ops/joins.cpp
     src/ops/window.cpp

@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Optional, List
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError
 
@@ -140,6 +140,19 @@ class AppendData(BaseModel):
     columns: list[ColumnData]
 
 
+class RowData(BaseModel):
+    """A single row as key-value pairs."""
+    data: dict[str, Any]
+
+
+class TableCreateOLTP(BaseModel):
+    """Create a table with OLTP schema definition."""
+    name: str
+    columns: list[dict]  # [{"name": "id", "dtype": "string"}, ...]
+    primary_key: Optional[str] = None
+    sorted_by: Optional[str] = None
+
+
 class IngestTick(BaseModel):
     """A single tick for streaming ingestion."""
     symbol: str
@@ -169,6 +182,8 @@ def dtype_from_string(s: str) -> wdb.DType:
         "timestamp": wdb.DType.Timestamp,
         "symbol": wdb.DType.Symbol,
         "bool": wdb.DType.Bool,
+        "string": wdb.DType.String,
+        "decimal6": wdb.DType.Decimal6,
     }
     if s.lower() not in mapping:
         raise ValueError(f"Unknown dtype: {s}")
@@ -523,6 +538,186 @@ async def append_to_table(name: str, data: AppendData):
         "new_rows": len(data.columns[0].data) if data.columns else 0,
         "total_rows": new_table.num_rows,
     }
+
+
+# --- OLTP / CRUD API ---
+
+@app.post("/api/v1/{db_name}/tables")
+async def create_oltp_table(db_name: str, schema: TableCreateOLTP):
+    """Create a table with typed columns and optional primary key."""
+    validate_table_name(schema.name)
+
+    if db.has_table(schema.name):
+        raise HTTPException(400, f"Table '{schema.name}' already exists")
+
+    t = db.create_table(schema.name)
+
+    # Add columns based on schema
+    for col_def in schema.columns:
+        col_name = col_def["name"]
+        dtype_str = col_def["dtype"]
+        dtype = dtype_from_string(dtype_str)
+
+        if dtype == wdb.DType.String:
+            t.add_string_column_from_list(col_name, [])
+        else:
+            np_dtype = numpy_dtype_for(dtype)
+            arr = np.array([], dtype=np_dtype)
+            t.add_column_from_numpy(col_name, arr, dtype)
+
+    if schema.sorted_by:
+        t.set_sorted_by(schema.sorted_by)
+    if schema.primary_key:
+        t.set_primary_key(schema.primary_key)
+
+    db.save()
+    return {"created": schema.name, "columns": [c["name"] for c in schema.columns]}
+
+
+@app.post("/api/v1/{db_name}/tables/{table_name}/rows")
+async def insert_row(db_name: str, table_name: str, row: RowData):
+    """Insert a single row into a table."""
+    if not db.has_table(table_name):
+        raise HTTPException(404, f"Table '{table_name}' not found")
+
+    t = db[table_name]
+    try:
+        row_idx = t.append_row(row.data)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+    return {"table": table_name, "row_index": row_idx}
+
+
+@app.put("/api/v1/{db_name}/tables/{table_name}/rows/{pk}")
+async def update_row(db_name: str, table_name: str, pk: str, row: RowData):
+    """Update a row by primary key."""
+    if not db.has_table(table_name):
+        raise HTTPException(404, f"Table '{table_name}' not found")
+
+    t = db[table_name]
+    if not t.primary_key:
+        raise HTTPException(400, "Table has no primary key set")
+
+    pk_dtype = t.column_dtype(t.primary_key)
+
+    try:
+        if pk_dtype == wdb.DType.String:
+            ok = t.update_row(pk, row.data)
+        else:
+            ok = t.update_row(int(pk), row.data)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+    if not ok:
+        raise HTTPException(404, f"Row with pk={pk} not found")
+
+    return {"table": table_name, "pk": pk, "updated": True}
+
+
+@app.delete("/api/v1/{db_name}/tables/{table_name}/rows/{pk}")
+async def delete_row(db_name: str, table_name: str, pk: str):
+    """Soft-delete a row by primary key."""
+    if not db.has_table(table_name):
+        raise HTTPException(404, f"Table '{table_name}' not found")
+
+    t = db[table_name]
+    if not t.primary_key:
+        raise HTTPException(400, "Table has no primary key set")
+
+    pk_dtype = t.column_dtype(t.primary_key)
+
+    if pk_dtype == wdb.DType.String:
+        ok = t.delete_row(pk)
+    else:
+        ok = t.delete_row(int(pk))
+
+    if not ok:
+        raise HTTPException(404, f"Row with pk={pk} not found")
+
+    return {"table": table_name, "pk": pk, "deleted": True}
+
+
+def _read_row_at(t, row_idx: int) -> dict[str, Any]:
+    """Read a single row from a table by index, returning a dict."""
+    row = {}
+    for col_name in t.column_names():
+        if t.has_string_column(col_name):
+            scol = t.string_column(col_name)
+            row[col_name] = scol.get(row_idx)
+        else:
+            col = t.column(col_name)
+            arr = col.to_numpy()
+            val = arr[row_idx]
+            # Convert numpy types to Python native for JSON serialization
+            row[col_name] = val.item() if hasattr(val, "item") else val
+    return row
+
+
+@app.get("/api/v1/{db_name}/tables/{table_name}/rows/{pk}")
+async def get_row_by_pk(db_name: str, table_name: str, pk: str):
+    """Get a single row by primary key."""
+    if not db.has_table(table_name):
+        raise HTTPException(404, f"Table '{table_name}' not found")
+
+    t = db[table_name]
+    if not t.primary_key:
+        raise HTTPException(400, "Table has no primary key set")
+
+    pk_dtype = t.column_dtype(t.primary_key)
+
+    if pk_dtype == wdb.DType.String:
+        row_idx = t.find_row(pk)
+    else:
+        row_idx = t.find_row(int(pk))
+
+    if row_idx is None:
+        raise HTTPException(404, f"Row with pk={pk} not found")
+
+    return {"data": _read_row_at(t, row_idx)}
+
+
+@app.get("/api/v1/{db_name}/tables/{table_name}/rows")
+async def filter_rows(db_name: str, table_name: str, request: Request):
+    """Filter rows by query parameters (col=val). Returns matching row data."""
+    if not db.has_table(table_name):
+        raise HTTPException(404, f"Table '{table_name}' not found")
+
+    t = db[table_name]
+    params = dict(request.query_params)
+    limit = int(params.pop("limit", "500"))
+
+    # Intersect filter results across all query params
+    row_indices = None
+    for col, val in params.items():
+        if not t.has_column(col) and not t.has_string_column(col):
+            continue
+        try:
+            col_dtype = t.column_dtype(col)
+            if col_dtype == wdb.DType.String:
+                matches = set(t.where_eq(col, val))
+            else:
+                matches = set(t.where_eq(col, int(val)))
+        except Exception:
+            continue
+        row_indices = matches if row_indices is None else row_indices & matches
+
+    # If no filters, return all valid rows
+    if row_indices is None:
+        row_indices = set(range(t.num_rows))
+
+    # Sort and limit
+    sorted_indices = sorted(row_indices)[:limit]
+
+    rows = [_read_row_at(t, idx) for idx in sorted_indices]
+    return {"data": rows, "count": len(rows)}
+
+
+@app.post("/api/v1/{db_name}/checkpoint")
+async def checkpoint(db_name: str):
+    """Flush WAL, save all tables to disk, truncate WAL."""
+    db.checkpoint()
+    return {"checkpoint": "ok"}
 
 
 # --- Streaming Ingestion API ---

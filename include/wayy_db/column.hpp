@@ -3,6 +3,7 @@
 #include "wayy_db/types.hpp"
 #include "wayy_db/column_view.hpp"
 
+#include <bit>
 #include <memory>
 #include <string>
 #include <variant>
@@ -52,6 +53,29 @@ public:
     SymbolView as_symbol() { return as<uint32_t>(); }
     BoolView as_bool() { return as<uint8_t>(); }
 
+    /// Decimal6 accessor (underlying int64, but tagged as Decimal6)
+    Int64View as_decimal6() {
+        if (dtype_ != DType::Decimal6) throw TypeMismatch(DType::Decimal6, dtype_);
+        return ColumnView<int64_t>(static_cast<int64_t*>(data_), size_);
+    }
+
+    /// Validity bitmap (null/deleted tracking)
+    bool has_validity() const { return has_validity_; }
+    void ensure_validity();                     // Allocate bitmap, mark all valid
+    bool is_valid(size_t row) const;
+    void set_valid(size_t row, bool valid);
+    size_t count_valid() const;                 // popcount over bitmap
+
+    /// Direct access to validity bitmap bytes (for persistence)
+    const std::vector<uint8_t>& validity_bitmap() const { return validity_; }
+    void set_validity_bitmap(std::vector<uint8_t> bitmap);
+
+    /// Append a single element (column must own its data)
+    void append(const void* value, size_t value_size);
+
+    /// Overwrite element at row index (column must own its data)
+    void set(size_t row, const void* value, size_t value_size);
+
 private:
     std::string name_;
     DType dtype_ = DType::Int64;
@@ -59,6 +83,10 @@ private:
     size_t size_ = 0;
     bool owns_data_ = false;
     std::vector<uint8_t> owned_data_;  // Storage when we own the data
+
+    // Validity bitmap: 1 bit per row (bit=1 means valid, bit=0 means null/deleted)
+    std::vector<uint8_t> validity_;
+    bool has_validity_ = false;
 
     /// Check that the requested type matches the column's dtype
     template<typename T>
@@ -81,21 +109,22 @@ ColumnView<const T> Column::as() const {
 
 template<typename T>
 void Column::check_type() const {
+    using U = std::remove_cv_t<T>;
     DType expected;
-    if constexpr (std::is_same_v<T, int64_t>) {
-        // Could be Int64 or Timestamp
-        if (dtype_ != DType::Int64 && dtype_ != DType::Timestamp) {
+    if constexpr (std::is_same_v<U, int64_t>) {
+        // Could be Int64, Timestamp, or Decimal6 (all stored as int64_t)
+        if (dtype_ != DType::Int64 && dtype_ != DType::Timestamp && dtype_ != DType::Decimal6) {
             throw TypeMismatch(DType::Int64, dtype_);
         }
         return;
-    } else if constexpr (std::is_same_v<T, double>) {
+    } else if constexpr (std::is_same_v<U, double>) {
         expected = DType::Float64;
-    } else if constexpr (std::is_same_v<T, uint32_t>) {
+    } else if constexpr (std::is_same_v<U, uint32_t>) {
         expected = DType::Symbol;
-    } else if constexpr (std::is_same_v<T, uint8_t>) {
+    } else if constexpr (std::is_same_v<U, uint8_t>) {
         expected = DType::Bool;
     } else {
-        static_assert(sizeof(T) == 0, "Unsupported column type");
+        static_assert(sizeof(U) == 0, "Unsupported column type");
     }
 
     if (dtype_ != expected) {

@@ -11,6 +11,8 @@ DType dtype_from_string(std::string_view s) {
         {"timestamp", DType::Timestamp},
         {"symbol", DType::Symbol},
         {"bool", DType::Bool},
+        {"string", DType::String},
+        {"decimal6", DType::Decimal6},
     };
 
     auto it = map.find(s);

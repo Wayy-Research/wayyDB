@@ -4,6 +4,8 @@
 
 #include "wayy_db/wayy_db.hpp"
 
+#include <any>
+
 namespace py = pybind11;
 
 // GIL release guard for concurrent read operations
@@ -28,6 +30,7 @@ py::dtype wayy_dtype_to_numpy(DType dt) {
     switch (dt) {
         case DType::Int64:
         case DType::Timestamp:
+        case DType::Decimal6:
             return py::dtype::of<int64_t>();
         case DType::Float64:
             return py::dtype::of<double>();
@@ -35,8 +38,33 @@ py::dtype wayy_dtype_to_numpy(DType dt) {
             return py::dtype::of<uint32_t>();
         case DType::Bool:
             return py::dtype::of<uint8_t>();
+        case DType::String:
+            throw std::runtime_error("String columns use StringColumn, not numpy");
     }
     throw std::runtime_error("Unknown dtype");
+}
+
+// Helper: convert Python dict to std::unordered_map<string, std::any>
+std::unordered_map<std::string, std::any> py_dict_to_any_map(
+    py::dict d, Table& table) {
+    std::unordered_map<std::string, std::any> result;
+    for (auto& [key, val] : d) {
+        std::string col_name = py::str(key);
+        DType dt = table.column_dtype(col_name);
+
+        if (dt == DType::String) {
+            result[col_name] = std::string(py::str(val));
+        } else if (dt == DType::Int64 || dt == DType::Timestamp || dt == DType::Decimal6) {
+            result[col_name] = py::cast<int64_t>(val);
+        } else if (dt == DType::Float64) {
+            result[col_name] = py::cast<double>(val);
+        } else if (dt == DType::Symbol) {
+            result[col_name] = py::cast<uint32_t>(val);
+        } else if (dt == DType::Bool) {
+            result[col_name] = py::cast<uint8_t>(val);
+        }
+    }
+    return result;
 }
 
 PYBIND11_MODULE(_core, m, py::mod_gil_not_used()) {
@@ -49,6 +77,8 @@ PYBIND11_MODULE(_core, m, py::mod_gil_not_used()) {
         .value("Timestamp", DType::Timestamp)
         .value("Symbol", DType::Symbol)
         .value("Bool", DType::Bool)
+        .value("String", DType::String)
+        .value("Decimal6", DType::Decimal6)
         .export_values();
 
     // Exceptions
@@ -68,7 +98,29 @@ PYBIND11_MODULE(_core, m, py::mod_gil_not_used()) {
             return py::array(dt, {self.size()}, {dtype_size(self.dtype())},
                            self.data(), py::cast(self));
         }, py::return_value_policy::reference_internal,
-           "Zero-copy view as numpy array");
+           "Zero-copy view as numpy array")
+        .def("is_valid", &Column::is_valid, py::arg("row"),
+             "Check if row is valid (not null/deleted)")
+        .def("count_valid", &Column::count_valid,
+             "Count non-null/non-deleted rows");
+
+    // StringColumn class
+    py::class_<StringColumn>(m, "StringColumn")
+        .def(py::init<std::string>(), py::arg("name") = "")
+        .def_property_readonly("name", &StringColumn::name)
+        .def_property_readonly("dtype", &StringColumn::dtype)
+        .def_property_readonly("size", &StringColumn::size)
+        .def("__len__", &StringColumn::size)
+        .def("get", &StringColumn::get, py::arg("row"),
+             "Get string at row index")
+        .def("append", &StringColumn::append, py::arg("val"),
+             "Append a string value")
+        .def("set", &StringColumn::set, py::arg("row"), py::arg("val"),
+             "Set string at row index")
+        .def("is_valid", &StringColumn::is_valid, py::arg("row"))
+        .def("count_valid", &StringColumn::count_valid)
+        .def("to_list", &StringColumn::to_vector,
+             "Get all strings as a Python list");
 
     // Table class
     py::class_<Table>(m, "Table")
@@ -80,14 +132,71 @@ PYBIND11_MODULE(_core, m, py::mod_gil_not_used()) {
             if (t.sorted_by()) return py::cast(*t.sorted_by());
             return py::none();
         })
+        .def_property_readonly("primary_key", [](const Table& t) -> py::object {
+            if (t.primary_key()) return py::cast(*t.primary_key());
+            return py::none();
+        })
         .def("__len__", &Table::num_rows)
         .def("has_column", &Table::has_column)
         .def("column", py::overload_cast<const std::string&>(&Table::column),
              py::return_value_policy::reference_internal)
         .def("__getitem__", py::overload_cast<const std::string&>(&Table::column),
              py::return_value_policy::reference_internal)
+        .def("has_string_column", &Table::has_string_column)
+        .def("string_column", py::overload_cast<const std::string&>(&Table::string_column),
+             py::return_value_policy::reference_internal)
+        .def("column_dtype", &Table::column_dtype, py::arg("name"),
+             "Get the DType of any column (fixed or string)")
         .def("column_names", &Table::column_names)
         .def("set_sorted_by", &Table::set_sorted_by)
+        .def("set_primary_key", &Table::set_primary_key, py::arg("col_name"),
+             "Set the primary key column and build hash index")
+        .def("rebuild_index", &Table::rebuild_index,
+             "Rebuild the primary key hash index")
+        // CRUD operations
+        .def("append_row", [](Table& self, py::dict values) -> size_t {
+            auto map = py_dict_to_any_map(values, self);
+            return self.append_row(map);
+        }, py::arg("values"), "Append a row from a dict, returns row index")
+        .def("update_row", [](Table& self, py::object pk, py::dict values) -> bool {
+            auto map = py_dict_to_any_map(values, self);
+            if (py::isinstance<py::int_>(pk)) {
+                return self.update_row(py::cast<int64_t>(pk), map);
+            } else {
+                return self.update_row(std::string(py::str(pk)), map);
+            }
+        }, py::arg("pk"), py::arg("values"), "Update row by primary key")
+        .def("delete_row", [](Table& self, py::object pk) -> bool {
+            if (py::isinstance<py::int_>(pk)) {
+                return self.delete_row(py::cast<int64_t>(pk));
+            } else {
+                return self.delete_row(std::string(py::str(pk)));
+            }
+        }, py::arg("pk"), "Soft-delete row by primary key")
+        .def("find_row", [](const Table& self, py::object pk) -> py::object {
+            std::optional<size_t> row;
+            if (py::isinstance<py::int_>(pk)) {
+                row = self.find_row(py::cast<int64_t>(pk));
+            } else {
+                row = self.find_row(std::string(py::str(pk)));
+            }
+            if (row) return py::cast(*row);
+            return py::none();
+        }, py::arg("pk"), "Find row index by primary key")
+        .def("where_eq", [](const Table& self, const std::string& col, py::object val) -> py::list {
+            std::vector<size_t> rows;
+            DType dt = self.column_dtype(col);
+            if (dt == DType::String) {
+                rows = self.where_eq(col, std::string(py::str(val)));
+            } else {
+                rows = self.where_eq(col, py::cast<int64_t>(val));
+            }
+            py::list result;
+            for (auto r : rows) result.append(r);
+            return result;
+        }, py::arg("col"), py::arg("val"), "Filter rows where col == val")
+        .def("compact", &Table::compact,
+             "Physically remove deleted rows and rebuild index")
         .def("save", &Table::save)
         .def_static("load", &Table::load)
         .def_static("mmap", &Table::mmap)
@@ -103,14 +212,32 @@ PYBIND11_MODULE(_core, m, py::mod_gil_not_used()) {
             std::memcpy(data.data(), buf.ptr, data.size());
             self.add_column(Column(name, dtype, std::move(data)));
         }, py::arg("name"), py::arg("array"), py::arg("dtype"))
+        .def("add_string_column_from_list", [](Table& self, const std::string& name,
+                                                py::list strings) {
+            StringColumn sc(name);
+            for (auto& item : strings) {
+                if (item.is_none()) {
+                    sc.append_null();
+                } else {
+                    sc.append(std::string(py::str(item)));
+                }
+            }
+            self.add_string_column(std::move(sc));
+        }, py::arg("name"), py::arg("strings"),
+           "Add a string column from a Python list")
         .def("to_dict", [](Table& self) -> py::dict {
             py::dict result;
             for (const auto& col_name : self.column_names()) {
-                Column& col = self.column(col_name);
-                py::dtype dt = wayy_dtype_to_numpy(col.dtype());
-                // Make a copy for the dict
-                py::array arr(dt, {col.size()}, {dtype_size(col.dtype())}, col.data());
-                result[py::cast(col_name)] = arr.attr("copy")();
+                if (self.has_string_column(col_name)) {
+                    auto& scol = self.string_column(col_name);
+                    result[py::cast(col_name)] = py::cast(scol.to_vector());
+                } else {
+                    Column& col = self.column(col_name);
+                    py::dtype dt = wayy_dtype_to_numpy(col.dtype());
+                    // Make a copy for the dict
+                    py::array arr(dt, {col.size()}, {dtype_size(col.dtype())}, col.data());
+                    result[py::cast(col_name)] = arr.attr("copy")();
+                }
             }
             return result;
         });
@@ -131,7 +258,9 @@ PYBIND11_MODULE(_core, m, py::mod_gil_not_used()) {
         })
         .def("drop_table", &Database::drop_table)
         .def("save", &Database::save)
-        .def("refresh", &Database::refresh);
+        .def("refresh", &Database::refresh)
+        .def("checkpoint", &Database::checkpoint,
+             "Flush WAL, save all tables, truncate WAL");
 
     // Operations submodule
     py::module_ ops_mod = m.def_submodule("ops", "WayyDB operations");
@@ -244,5 +373,5 @@ PYBIND11_MODULE(_core, m, py::mod_gil_not_used()) {
     }, py::arg("col"), py::arg("n"), "Shift values by n positions");
 
     // Version info
-    m.attr("__version__") = "0.1.0";
+    m.attr("__version__") = "0.2.0";
 }

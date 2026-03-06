@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wayy_db/table.hpp"
+#include "wayy_db/wal.hpp"
 
 #include <memory>
 #include <shared_mutex>
@@ -58,10 +59,19 @@ public:
     /// Reload table list from disk
     void refresh();
 
+    /// WAL: checkpoint (flush WAL, save tables, truncate WAL)
+    void checkpoint();
+
+    /// WAL: get access to WAL for logging (may be null for in-memory DB)
+    WriteAheadLog* wal() { return wal_.get(); }
+
 private:
     std::string path_;
     std::unordered_map<std::string, Table> tables_;
     std::unordered_map<std::string, bool> loaded_;  // Track which tables are loaded
+
+    // Write-ahead log (persistent databases only)
+    std::unique_ptr<WriteAheadLog> wal_;
 
     // Mutex for thread-safe access (mutable allows const methods to lock)
     // Uses shared_mutex for concurrent reads, exclusive writes

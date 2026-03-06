@@ -1,1 +1,0 @@
-# wayyDB benchmark suite

@@ -15,6 +15,7 @@ from wayy_db._core import (
     Database,
     Table,
     Column,
+    StringColumn,
     # Types
     DType,
     # Exceptions
@@ -34,6 +35,7 @@ __all__ = [
     "Database",
     "Table",
     "Column",
+    "StringColumn",
     # Types
     "DType",
     # Exceptions
