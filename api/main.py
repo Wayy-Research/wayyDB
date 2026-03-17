@@ -88,7 +88,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -182,12 +182,15 @@ def dtype_from_string(s: str) -> wdb.DType:
         "timestamp": wdb.DType.Timestamp,
         "symbol": wdb.DType.Symbol,
         "bool": wdb.DType.Bool,
-        "string": wdb.DType.String,
-        "decimal6": wdb.DType.Decimal6,
     }
+    # String and Decimal6 exist in C++ headers but aren't yet exposed in pybind11
     if s.lower() not in mapping:
-        raise ValueError(f"Unknown dtype: {s}")
+        raise ValueError(f"Unknown dtype: {s}. Available: {list(mapping.keys())}")
     return mapping[s.lower()]
+
+
+# String DType not yet in pybind11 bindings — use sentinel for safe comparisons
+_DTYPE_STRING = getattr(wdb.DType, "String", None)
 
 
 TABLE_NAME_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$')
@@ -558,12 +561,9 @@ async def create_oltp_table(db_name: str, schema: TableCreateOLTP):
         dtype_str = col_def["dtype"]
         dtype = dtype_from_string(dtype_str)
 
-        if dtype == wdb.DType.String:
-            t.add_string_column_from_list(col_name, [])
-        else:
-            np_dtype = numpy_dtype_for(dtype)
-            arr = np.array([], dtype=np_dtype)
-            t.add_column_from_numpy(col_name, arr, dtype)
+        np_dtype = numpy_dtype_for(dtype)
+        arr = np.array([], dtype=np_dtype)
+        t.add_column_from_numpy(col_name, arr, dtype)
 
     if schema.sorted_by:
         t.set_sorted_by(schema.sorted_by)
@@ -602,7 +602,7 @@ async def update_row(db_name: str, table_name: str, pk: str, row: RowData):
     pk_dtype = t.column_dtype(t.primary_key)
 
     try:
-        if pk_dtype == wdb.DType.String:
+        if pk_dtype == _DTYPE_STRING:
             ok = t.update_row(pk, row.data)
         else:
             ok = t.update_row(int(pk), row.data)
@@ -627,7 +627,7 @@ async def delete_row(db_name: str, table_name: str, pk: str):
 
     pk_dtype = t.column_dtype(t.primary_key)
 
-    if pk_dtype == wdb.DType.String:
+    if pk_dtype == _DTYPE_STRING:
         ok = t.delete_row(pk)
     else:
         ok = t.delete_row(int(pk))
@@ -666,7 +666,7 @@ async def get_row_by_pk(db_name: str, table_name: str, pk: str):
 
     pk_dtype = t.column_dtype(t.primary_key)
 
-    if pk_dtype == wdb.DType.String:
+    if pk_dtype == _DTYPE_STRING:
         row_idx = t.find_row(pk)
     else:
         row_idx = t.find_row(int(pk))
@@ -694,7 +694,7 @@ async def filter_rows(db_name: str, table_name: str, request: Request):
             continue
         try:
             col_dtype = t.column_dtype(col)
-            if col_dtype == wdb.DType.String:
+            if col_dtype == _DTYPE_STRING:
                 matches = set(t.where_eq(col, val))
             else:
                 matches = set(t.where_eq(col, int(val)))

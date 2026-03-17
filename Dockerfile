@@ -23,8 +23,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY --chown=user . .
 
-RUN pip install --no-cache-dir -v . && \
-    pip install --no-cache-dir -r api/requirements.txt
+RUN pip install --no-cache-dir -v ".[api,cli]"
 
 EXPOSE 8080
 

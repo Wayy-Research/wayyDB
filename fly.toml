@@ -1,0 +1,27 @@
+# WayyDB Cloud — Fly.io deployment config
+app = "wayydb"
+primary_region = "ewr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  WAYY_DATA_PATH = "/data/wayydb/db"
+  PORT = "8080"
+  CORS_ORIGINS = "*"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "1gb"
+
+[mounts]
+  source = "wayydb_data"
+  destination = "/data/wayydb"

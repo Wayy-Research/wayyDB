@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wayyDB - The Fastest Time-Series Database for Python</title>
+<meta name="description" content="C++20 columnar TSDB with Python bindings. 58x faster than pandas on as-of joins. SIMD-accelerated. Real-time streaming.">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg-deep:#0a0e1a;
+  --bg-card:#111827;
+  --bg-card-hover:#1a2236;
+  --bg-terminal:#0c1018;
+  --border:#1e293b;
+  --border-glow:#1e40af33;
+  --text-primary:#f1f5f9;
+  --text-secondary:#94a3b8;
+  --text-muted:#64748b;
+  --accent:#38bdf8;
+  --accent-bright:#67e8f9;
+  --accent-deep:#0ea5e9;
+  --green:#34d399;
+  --purple:#a78bfa;
+  --orange:#fb923c;
+  --pink:#f472b6;
+  --red:#f87171;
+  --mono:'SF Mono','Cascadia Code','Fira Code','JetBrains Mono',Consolas,'Courier New',monospace;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap')}
+
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:var(--sans);background:var(--bg-deep);color:var(--text-primary);line-height:1.6;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none;transition:color .2s}
+a:hover{color:var(--accent-bright)}
+
+/* ─── GRID BACKGROUND ─── */
+.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(56,189,248,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(56,189,248,.03) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+.grid-bg::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(56,189,248,.08),transparent 70%)}
+
+/* ─── GLOW ORB ─── */
+.glow-orb{position:absolute;border-radius:50%;filter:blur(120px);pointer-events:none;opacity:.4}
+.glow-orb-1{width:600px;height:600px;top:-200px;left:-100px;background:rgba(14,165,233,.15)}
+.glow-orb-2{width:400px;height:400px;top:200px;right:-100px;background:rgba(167,139,250,.1)}
+
+/* ─── LAYOUT ─── */
+.container{max-width:1200px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+section{padding:100px 0}
+@media(max-width:768px){section{padding:64px 0}.container{padding:0 16px}}
+
+/* ─── NAV ─── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 0;
+  background:rgba(10,14,26,.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+nav .container{display:flex;align-items:center;justify-content:space-between}
+.nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.125rem;letter-spacing:-.02em}
+.nav-logo svg{width:28px;height:28px}
+.nav-links{display:flex;align-items:center;gap:24px}
+.nav-links a{color:var(--text-secondary);font-size:.875rem;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--text-primary)}
+.nav-gh{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:1px solid var(--border);
+  color:var(--text-secondary);font-size:.875rem;font-weight:500;transition:all .2s}
+.nav-gh:hover{border-color:var(--text-muted);color:var(--text-primary);background:rgba(255,255,255,.03)}
+@media(max-width:640px){.nav-links a:not(.nav-gh){display:none}}
+
+/* ─── HERO ─── */
+.hero{padding-top:160px;padding-bottom:100px;text-align:center;position:relative}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;
+  border-radius:100px;border:1px solid var(--border);background:rgba(56,189,248,.05);
+  font-size:.8rem;font-weight:500;color:var(--accent);margin-bottom:32px;letter-spacing:.02em}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hero h1{font-size:clamp(2.5rem,6vw,4.5rem);font-weight:800;line-height:1.08;letter-spacing:-.04em;
+  margin-bottom:24px;
+  background:linear-gradient(135deg,#f1f5f9 0%,#38bdf8 50%,#a78bfa 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:clamp(1rem,2vw,1.25rem);color:var(--text-secondary);max-width:640px;margin:0 auto 48px;line-height:1.7}
+.hero-cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:16px}
+
+/* ─── PIP INSTALL BOX ─── */
+.pip-box{display:flex;align-items:center;gap:12px;padding:14px 20px;
+  background:var(--bg-terminal);border:1px solid var(--border);border-radius:12px;
+  font-family:var(--mono);font-size:.95rem;cursor:pointer;transition:all .25s;position:relative}
+.pip-box:hover{border-color:var(--accent);box-shadow:0 0 30px rgba(56,189,248,.1)}
+.pip-box .prompt{color:var(--accent);user-select:none}
+.pip-box .cmd{color:var(--text-primary)}
+.pip-box .copy-btn{padding:6px;border-radius:6px;border:none;background:transparent;
+  color:var(--text-muted);cursor:pointer;transition:all .2s;display:flex;align-items:center}
+.pip-box .copy-btn:hover{color:var(--accent);background:rgba(56,189,248,.1)}
+.pip-box .copied{position:absolute;right:-8px;top:-8px;background:var(--green);color:#000;
+  font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:100px;opacity:0;
+  transform:translateY(4px);transition:all .3s;font-family:var(--sans)}
+.pip-box .copied.show{opacity:1;transform:translateY(0)}
+
+.btn-primary{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;
+  background:linear-gradient(135deg,var(--accent-deep),#2563eb);color:#fff;
+  border-radius:12px;font-weight:600;font-size:.95rem;transition:all .25s;border:none;cursor:pointer}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(56,189,248,.25);color:#fff}
+
+/* ─── SECTION HEADERS ─── */
+.section-label{display:inline-flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+.section-title{font-size:clamp(1.75rem,4vw,2.75rem);font-weight:800;letter-spacing:-.03em;
+  line-height:1.15;margin-bottom:16px}
+.section-desc{font-size:1.05rem;color:var(--text-secondary);max-width:560px;line-height:1.7}
+
+/* ─── BENCHMARK BARS ─── */
+.bench-grid{display:grid;gap:20px;margin-top:48px}
+.bench-row{display:grid;grid-template-columns:200px 1fr 100px;align-items:center;gap:16px;
+  padding:20px 24px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;
+  transition:all .3s}
+.bench-row:hover{border-color:var(--accent);background:var(--bg-card-hover);transform:translateX(4px)}
+.bench-label{font-weight:600;font-size:.9rem;white-space:nowrap}
+.bench-label span{display:block;font-size:.75rem;color:var(--text-muted);font-weight:400;margin-top:2px}
+.bench-bars{position:relative;height:36px;display:flex;align-items:center;gap:8px}
+.bench-bar{height:28px;border-radius:6px;position:relative;min-width:4px;transition:width 1.5s cubic-bezier(.16,1,.3,1)}
+.bench-bar-wayy{background:linear-gradient(90deg,var(--accent-deep),var(--accent));box-shadow:0 0 20px rgba(56,189,248,.2)}
+.bench-bar-pandas{background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.2)}
+.bench-time{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:.7rem;font-weight:500;white-space:nowrap}
+.bench-bar-wayy .bench-time{color:rgba(255,255,255,.9)}
+.bench-bar-pandas .bench-time{color:var(--red)}
+.bench-speed{font-family:var(--mono);font-weight:700;font-size:1.1rem;color:var(--accent-bright);text-align:right;white-space:nowrap}
+@media(max-width:768px){
+  .bench-row{grid-template-columns:1fr;gap:8px}
+  .bench-speed{text-align:left}
+}
+
+/* ─── TERMINAL ─── */
+.terminal{background:var(--bg-terminal);border:1px solid var(--border);border-radius:16px;
+  overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4);max-width:720px;margin:0 auto;position:relative}
+.terminal::before{content:'';position:absolute;inset:-1px;border-radius:16px;padding:1px;
+  background:linear-gradient(180deg,rgba(56,189,248,.15),transparent 40%);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.terminal-bar{display:flex;align-items:center;gap:8px;padding:14px 20px;border-bottom:1px solid var(--border)}
+.terminal-dot{width:12px;height:12px;border-radius:50%;background:var(--border)}
+.terminal-dot:nth-child(1){background:#f87171}
+.terminal-dot:nth-child(2){background:#fbbf24}
+.terminal-dot:nth-child(3){background:#34d399}
+.terminal-title{flex:1;text-align:center;font-size:.75rem;color:var(--text-muted);font-family:var(--mono)}
+.terminal-body{padding:24px;font-family:var(--mono);font-size:.85rem;line-height:2;min-height:220px}
+.terminal-line{display:flex;white-space:nowrap;overflow:hidden}
+.terminal-line .prompt-char{color:var(--accent);margin-right:8px;user-select:none}
+.terminal-line .comment{color:var(--text-muted);font-style:italic}
+.terminal-line .flag{color:var(--purple)}
+.terminal-line .string{color:var(--green)}
+.terminal-line .url{color:var(--orange)}
+.terminal-output{color:var(--text-muted);padding-left:20px;font-size:.8rem}
+.cursor-blink{display:inline-block;width:8px;height:16px;background:var(--accent);
+  animation:blink 1s step-end infinite;vertical-align:middle;margin-left:2px;border-radius:1px}
+@keyframes blink{50%{opacity:0}}
+
+/* ─── CODE BLOCK ─── */
+.code-block{background:var(--bg-terminal);border:1px solid var(--border);border-radius:16px;
+  overflow:hidden;max-width:720px;margin:0 auto;position:relative}
+.code-block::before{content:'';position:absolute;inset:-1px;border-radius:16px;padding:1px;
+  background:linear-gradient(180deg,rgba(167,139,250,.15),transparent 40%);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.code-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;
+  border-bottom:1px solid var(--border)}
+.code-lang{font-size:.75rem;color:var(--text-muted);font-family:var(--mono);
+  background:rgba(167,139,250,.1);padding:3px 10px;border-radius:100px;color:var(--purple)}
+.code-copy{padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;
+  color:var(--text-muted);font-size:.75rem;cursor:pointer;font-family:var(--mono);transition:all .2s}
+.code-copy:hover{border-color:var(--text-muted);color:var(--text-primary)}
+.code-body{padding:24px;font-family:var(--mono);font-size:.85rem;line-height:1.8;overflow-x:auto}
+.code-body .kw{color:var(--purple)}
+.code-body .fn{color:var(--accent)}
+.code-body .str{color:var(--green)}
+.code-body .comment{color:var(--text-muted)}
+.code-body .num{color:var(--orange)}
+.code-body .op{color:var(--text-secondary)}
+.code-body .var{color:var(--text-primary)}
+
+/* ─── FEATURES GRID ─── */
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-top:48px}
+.feature-card{padding:32px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:16px;transition:all .3s;position:relative;overflow:hidden}
+.feature-card:hover{border-color:rgba(56,189,248,.3);transform:translateY(-2px);
+  box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.feature-card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(56,189,248,.3),transparent);opacity:0;transition:opacity .3s}
+.feature-card:hover::after{opacity:1}
+.feature-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;margin-bottom:20px;font-size:1.25rem}
+.feature-icon.blue{background:rgba(56,189,248,.1);color:var(--accent)}
+.feature-icon.purple{background:rgba(167,139,250,.1);color:var(--purple)}
+.feature-icon.green{background:rgba(52,211,153,.1);color:var(--green)}
+.feature-icon.orange{background:rgba(251,146,60,.1);color:var(--orange)}
+.feature-icon.pink{background:rgba(244,114,182,.1);color:var(--pink)}
+.feature-icon.cyan{background:rgba(103,232,249,.1);color:var(--accent-bright)}
+.feature-card h3{font-size:1.1rem;font-weight:700;margin-bottom:8px;letter-spacing:-.01em}
+.feature-card p{color:var(--text-secondary);font-size:.9rem;line-height:1.6}
+
+/* ─── GETTING STARTED ─── */
+.gs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:48px}
+.gs-step{padding:28px;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;position:relative}
+.gs-num{font-family:var(--mono);font-size:.75rem;font-weight:700;color:var(--accent);
+  background:rgba(56,189,248,.1);width:28px;height:28px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.gs-step h3{font-size:1rem;font-weight:700;margin-bottom:8px}
+.gs-step code{display:block;font-family:var(--mono);font-size:.82rem;color:var(--accent-bright);
+  background:rgba(56,189,248,.05);padding:12px 16px;border-radius:8px;margin-top:12px;
+  border:1px solid rgba(56,189,248,.1);overflow-x:auto;white-space:nowrap}
+
+/* ─── FOOTER ─── */
+footer{border-top:1px solid var(--border);padding:48px 0;text-align:center}
+footer .container{display:flex;flex-direction:column;align-items:center;gap:16px}
+.footer-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1rem;color:var(--text-primary)}
+.footer-links{display:flex;gap:24px}
+.footer-links a{color:var(--text-muted);font-size:.85rem}
+.footer-links a:hover{color:var(--text-primary)}
+.footer-copy{color:var(--text-muted);font-size:.8rem}
+
+/* ─── STAT PILLS ─── */
+.hero-stats{display:flex;flex-wrap:wrap;justify-content:center;gap:32px;margin-top:56px}
+.hero-stat{text-align:center}
+.hero-stat .num{font-family:var(--mono);font-size:2rem;font-weight:800;
+  background:linear-gradient(135deg,var(--accent),var(--accent-bright));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+.hero-stat .label{font-size:.8rem;color:var(--text-muted);margin-top:4px}
+
+/* ─── ANIMATIONS ─── */
+.fade-in{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+.fade-in-delay-1{transition-delay:.1s}
+.fade-in-delay-2{transition-delay:.2s}
+.fade-in-delay-3{transition-delay:.3s}
+
+/* ─── TWO COL LAYOUT ─── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+@media(max-width:900px){.two-col{grid-template-columns:1fr;gap:32px}}
+
+/* ─── BENCH LEGEND ─── */
+.bench-legend{display:flex;gap:24px;margin-top:16px;justify-content:flex-end}
+.bench-legend-item{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--text-muted)}
+.bench-legend-dot{width:12px;height:12px;border-radius:3px}
+.bench-legend-dot.wayy{background:linear-gradient(90deg,var(--accent-deep),var(--accent))}
+.bench-legend-dot.pandas{background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.3)}
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="container">
+    <a href="#" class="nav-logo">
+      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="28" height="28" rx="6" fill="url(#logo-grad)"/>
+        <path d="M7 20L10.5 8h2l2 7 2-7h2L22 20h-2.5l-2-7.5-2.2 7.5h-1.6l-2.2-7.5-2 7.5H7z" fill="#fff"/>
+        <defs><linearGradient id="logo-grad" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+      </svg>
+      wayyDB
+    </a>
+    <div class="nav-links">
+      <a href="#performance">Performance</a>
+      <a href="#features">Features</a>
+      <a href="#start">Get Started</a>
+      <a href="https://github.com/Wayy-Research/wayyDB" class="nav-gh" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+
+    <div class="fade-in">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        v0.1.0 &mdash; Now Available
+      </div>
+    </div>
+
+    <h1 class="fade-in fade-in-delay-1">The fastest time-series<br>database for Python</h1>
+
+    <p class="fade-in fade-in-delay-2">
+      C++20 columnar engine with Python bindings. kdb+-like joins, SIMD aggregations,
+      and real-time streaming &mdash; all from a single <code style="font-family:var(--mono);color:var(--accent);font-size:inherit">pip install</code>.
+    </p>
+
+    <div class="hero-cta fade-in fade-in-delay-3">
+      <div class="pip-box" onclick="copyPip(this)" title="Click to copy">
+        <span class="prompt">$</span>
+        <span class="cmd">pip install wayy-db</span>
+        <button class="copy-btn" aria-label="Copy to clipboard">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"/></svg>
+        </button>
+        <span class="copied">Copied!</span>
+      </div>
+      <a href="https://api.wayydb.com" class="btn-primary" target="_blank" rel="noopener">
+        Try Wayy Cloud
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3l5 5-5 5"/></svg>
+      </a>
+    </div>
+
+    <div class="hero-stats fade-in fade-in-delay-3">
+      <div class="hero-stat">
+        <div class="num">58x</div>
+        <div class="label">faster as-of joins</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">1240x</div>
+        <div class="label">faster disk loads</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">20x</div>
+        <div class="label">faster aggregations</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">C++20</div>
+        <div class="label">with Python bindings</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PERFORMANCE -->
+<section id="performance">
+  <div class="container">
+    <div class="section-label fade-in">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l2.47 5.01L16 6.73l-4 3.9.94 5.5L8 13.47l-4.94 2.66.94-5.5-4-3.9 5.53-.72z"/></svg>
+      Performance
+    </div>
+    <h2 class="section-title fade-in">Benchmarked against pandas</h2>
+    <p class="section-desc fade-in">Real benchmarks on 1M-row datasets. No tricks, no cherry-picking. wayyDB's C++20 columnar engine with AVX2 SIMD is simply faster.</p>
+
+    <div class="bench-grid fade-in">
+      <div class="bench-row" data-wayy="1.7" data-pandas="100" data-speed="58x">
+        <div class="bench-label">As-of Join<span>1M x 1M rows</span></div>
+        <div class="bench-bars">
+          <div class="bench-bar bench-bar-wayy" style="width:0%" data-target="1.7"><span class="bench-time">142ms</span></div>
+          <div class="bench-bar bench-bar-pandas" style="width:0%" data-target="100"><span class="bench-time">8,234ms</span></div>
+        </div>
+        <div class="bench-speed">58x</div>
+      </div>
+      <div class="bench-row" data-wayy="4.9" data-pandas="100" data-speed="20x">
+        <div class="bench-label">Aggregation<span>5 ops on 1M rows</span></div>
+        <div class="bench-bars">
+          <div class="bench-bar bench-bar-wayy" style="width:0%" data-target="4.9"><span class="bench-time">0.8ms</span></div>
+          <div class="bench-bar bench-bar-pandas" style="width:0%" data-target="100"><span class="bench-time">16.2ms</span></div>
+        </div>
+        <div class="bench-speed">20x</div>
+      </div>
+      <div class="bench-row" data-wayy="8.3" data-pandas="100" data-speed="12x">
+        <div class="bench-label">Create Table<span>1M rows</span></div>
+        <div class="bench-bars">
+          <div class="bench-bar bench-bar-wayy" style="width:0%" data-target="8.3"><span class="bench-time">12ms</span></div>
+          <div class="bench-bar bench-bar-pandas" style="width:0%" data-target="100"><span class="bench-time">145ms</span></div>
+        </div>
+        <div class="bench-speed">12x</div>
+      </div>
+      <div class="bench-row" data-wayy="0.08" data-pandas="100" data-speed="1240x">
+        <div class="bench-label">Load from Disk<span>1M rows, mmap</span></div>
+        <div class="bench-bars">
+          <div class="bench-bar bench-bar-wayy" style="width:0%" data-target="0.08"><span class="bench-time">0.05ms</span></div>
+          <div class="bench-bar bench-bar-pandas" style="width:0%" data-target="100"><span class="bench-time">62ms</span></div>
+        </div>
+        <div class="bench-speed">1240x</div>
+      </div>
+    </div>
+    <div class="bench-legend fade-in">
+      <div class="bench-legend-item"><div class="bench-legend-dot wayy"></div>wayyDB</div>
+      <div class="bench-legend-item"><div class="bench-legend-dot pandas"></div>pandas</div>
+    </div>
+  </div>
+</section>
+
+<!-- CLI -->
+<section id="cli" style="padding-top:60px">
+  <div class="container">
+    <div class="two-col">
+      <div>
+        <div class="section-label fade-in">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 012.5 1h11A1.5 1.5 0 0115 2.5v11a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 13.5v-11zM4 5l3 3-3 3m4 0h4"/></svg>
+          CLI
+        </div>
+        <h2 class="section-title fade-in">One CLI to<br>manage everything</h2>
+        <p class="section-desc fade-in">
+          Connect to Wayy Cloud, create tables, stream real-time market data, and run aggregations &mdash; all from your terminal. No boilerplate.
+        </p>
+      </div>
+      <div class="terminal fade-in">
+        <div class="terminal-bar">
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-title">wayy &mdash; terminal</div>
+        </div>
+        <div class="terminal-body" id="terminal-body">
+          <div class="terminal-line"><span class="comment"># Install with CLI extras</span></div>
+          <div class="terminal-line"><span class="prompt-char">$</span> pip install <span class="flag">wayy-db[cli]</span></div>
+          <div style="height:8px"></div>
+          <div class="terminal-line"><span class="comment"># Connect to Wayy Cloud</span></div>
+          <div class="terminal-line"><span class="prompt-char">$</span> wayy connect <span class="url">https://api.wayydb.com</span></div>
+          <div class="terminal-output">Connected to wayyDB v0.1.0</div>
+          <div style="height:8px"></div>
+          <div class="terminal-line"><span class="comment"># Create a table with schema</span></div>
+          <div class="terminal-line"><span class="prompt-char">$</span> wayy create trades <span class="flag">--schema</span> <span class="string">'{"ts":"timestamp","price":"float64"}'</span></div>
+          <div class="terminal-output">Table 'trades' created</div>
+          <div style="height:8px"></div>
+          <div class="terminal-line"><span class="comment"># Stream real-time data</span></div>
+          <div class="terminal-line"><span class="prompt-char">$</span> wayy stream trades <span class="flag">--symbols</span> <span class="string">BTC-USD,ETH-USD</span></div>
+          <div class="terminal-output">Streaming 2 symbols to trades...</div>
+          <div style="height:8px"></div>
+          <div class="terminal-line"><span class="comment"># Run aggregations</span></div>
+          <div class="terminal-line"><span class="prompt-char">$</span> wayy agg trades price <span class="flag">avg</span><span class="cursor-blink"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PYTHON API -->
+<section id="api" style="padding-top:60px">
+  <div class="container">
+    <div class="two-col" style="direction:rtl">
+      <div style="direction:ltr">
+        <div class="section-label fade-in">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M5.854 4.854a.5.5 0 10-.708-.708l-3.5 3.5a.5.5 0 000 .708l3.5 3.5a.5.5 0 00.708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 01.708-.708l3.5 3.5a.5.5 0 010 .708l-3.5 3.5a.5.5 0 01-.708-.708L13.293 8l-3.147-3.146z"/></svg>
+          Python API
+        </div>
+        <h2 class="section-title fade-in">Feels like pandas.<br>Runs like C++.</h2>
+        <p class="section-desc fade-in">
+          Familiar dict-based API for creating tables. Powerful as-of joins that run 58x faster. Zero-copy where possible.
+        </p>
+      </div>
+      <div class="code-block fade-in" style="direction:ltr">
+        <div class="code-bar">
+          <span class="code-lang">python</span>
+          <button class="code-copy" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code-body">
+<span class="kw">import</span> <span class="var">wayy_db</span> <span class="kw">as</span> <span class="var">wdb</span>
+
+<span class="comment"># Create a table from a dict</span>
+<span class="var">trades</span> <span class="op">=</span> <span class="fn">wdb.from_dict</span>({
+    <span class="str">"ts"</span>: timestamps,
+    <span class="str">"symbol"</span>: symbols,
+    <span class="str">"price"</span>: prices,
+}, <span class="var">sorted_by</span><span class="op">=</span><span class="str">"ts"</span>)
+
+<span class="comment"># As-of join -- 58x faster than pandas</span>
+<span class="var">result</span> <span class="op">=</span> <span class="fn">wdb.ops.aj</span>(
+    trades, quotes,
+    <span class="var">on</span><span class="op">=</span>[<span class="str">"symbol"</span>],
+    <span class="var">as_of</span><span class="op">=</span><span class="str">"ts"</span>
+)
+
+<span class="comment"># SIMD-accelerated aggregation</span>
+<span class="var">avg_price</span> <span class="op">=</span> <span class="fn">wdb.ops.avg</span>(trades, <span class="str">"price"</span>)
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container" style="text-align:center">
+    <div class="section-label fade-in" style="justify-content:center">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0l1.67 4.77L14.89 5.5 11.05 8.82l1.18 4.68L8 11l-4.23 2.5 1.18-4.68L1.11 5.5l5.22-.73z"/></svg>
+      Features
+    </div>
+    <h2 class="section-title fade-in" style="margin-left:auto;margin-right:auto">Built for quants.<br>Used by researchers.</h2>
+    <p class="section-desc fade-in" style="margin-left:auto;margin-right:auto">
+      Every feature designed around the workflows of quantitative researchers and data engineers.
+    </p>
+  </div>
+  <div class="container">
+    <div class="features-grid">
+      <div class="feature-card fade-in">
+        <div class="feature-icon blue">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <h3>SIMD Aggregations</h3>
+        <p>AVX2-accelerated sum, avg, min, max, and count. Crunches 1M rows in under a millisecond on modern hardware.</p>
+      </div>
+      <div class="feature-card fade-in fade-in-delay-1">
+        <div class="feature-icon purple">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </div>
+        <h3>As-of Joins</h3>
+        <p>kdb+-style temporal joins that match the latest record as of a given timestamp. Essential for aligning trades with quotes.</p>
+      </div>
+      <div class="feature-card fade-in fade-in-delay-2">
+        <div class="feature-icon green">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h3>Real-time Streaming</h3>
+        <p>WebSocket-based ingestion with pub/sub fan-out. Stream market data directly into tables with sub-millisecond latency.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon orange">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        </div>
+        <h3>Columnar Storage</h3>
+        <p>Column-oriented layout with memory-mapped files. Load 1M rows from disk in 0.05ms. Cache-friendly access patterns throughout.</p>
+      </div>
+      <div class="feature-card fade-in fade-in-delay-1">
+        <div class="feature-icon pink">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
+        </div>
+        <h3>REST + WebSocket API</h3>
+        <p>Full FastAPI-powered REST interface with WebSocket pub/sub. Query, insert, and subscribe from any language.</p>
+      </div>
+      <div class="feature-card fade-in fade-in-delay-2">
+        <div class="feature-icon cyan">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </div>
+        <h3>Window Joins</h3>
+        <p>Temporal window joins for rolling analysis. Compute features over sliding time windows without leaving the database.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GETTING STARTED -->
+<section id="start">
+  <div class="container" style="text-align:center">
+    <div class="section-label fade-in" style="justify-content:center">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11.251.068a.5.5 0 01.227.58L9.677 6.5H13a.5.5 0 01.364.843l-8 8.5a.5.5 0 01-.842-.49L6.323 9.5H3a.5.5 0 01-.364-.843l8-8.5a.5.5 0 01.615-.089z"/></svg>
+      Getting Started
+    </div>
+    <h2 class="section-title fade-in">Up and running in 60 seconds</h2>
+  </div>
+  <div class="container">
+    <div class="gs-grid">
+      <div class="gs-step fade-in">
+        <div class="gs-num">1</div>
+        <h3>Install wayyDB</h3>
+        <p style="color:var(--text-secondary);font-size:.9rem">Install the package with optional CLI and API extras.</p>
+        <code>pip install wayy-db[cli,api]</code>
+      </div>
+      <div class="gs-step fade-in fade-in-delay-1">
+        <div class="gs-num">2</div>
+        <h3>Connect to Wayy Cloud</h3>
+        <p style="color:var(--text-secondary);font-size:.9rem">Or run locally. Your data, your infrastructure.</p>
+        <code>wayy connect https://api.wayydb.com</code>
+      </div>
+      <div class="gs-step fade-in fade-in-delay-2">
+        <div class="gs-num">3</div>
+        <h3>Start building</h3>
+        <p style="color:var(--text-secondary);font-size:.9rem">Create tables, stream data, run joins and aggregations.</p>
+        <code>import wayy_db as wdb</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BANNER -->
+<section style="padding:80px 0">
+  <div class="container" style="text-align:center">
+    <div class="fade-in" style="background:linear-gradient(135deg,rgba(14,165,233,.08),rgba(99,102,241,.08));
+      border:1px solid rgba(56,189,248,.15);border-radius:24px;padding:64px 32px;position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(56,189,248,.08),transparent 60%);pointer-events:none"></div>
+      <h2 style="font-size:clamp(1.5rem,3vw,2.25rem);font-weight:800;letter-spacing:-.03em;margin-bottom:12px;position:relative">
+        Ready to drop pandas for joins?
+      </h2>
+      <p style="color:var(--text-secondary);font-size:1.05rem;margin-bottom:32px;position:relative">
+        wayyDB is open-source and free. Star us on GitHub or try Wayy Cloud.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px;position:relative">
+        <a href="https://github.com/Wayy-Research/wayyDB" class="btn-primary" target="_blank" rel="noopener" style="background:var(--bg-card);border:1px solid var(--border)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          Star on GitHub
+        </a>
+        <a href="https://api.wayydb.com" class="btn-primary" target="_blank" rel="noopener">
+          Try Wayy Cloud
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3l5 5-5 5"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-brand">
+      <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="6" fill="url(#logo-grad2)"/>
+        <path d="M7 20L10.5 8h2l2 7 2-7h2L22 20h-2.5l-2-7.5-2.2 7.5h-1.6l-2.2-7.5-2 7.5H7z" fill="#fff"/>
+        <defs><linearGradient id="logo-grad2" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+      </svg>
+      Wayy Research
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/Wayy-Research/wayyDB" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://api.wayydb.com" target="_blank" rel="noopener">Wayy Cloud</a>
+      <a href="https://github.com/Wayy-Research/wayyDB/issues" target="_blank" rel="noopener">Issues</a>
+    </div>
+    <div class="footer-copy">
+      Wayy Research &mdash; Buffalo, NY &mdash; Est. 2024<br>
+      9 years of institutional experience, pip-installable.
+    </div>
+  </div>
+</footer>
+
+<script>
+// Copy pip install command
+function copyPip(el) {
+  navigator.clipboard.writeText('pip install wayy-db');
+  const badge = el.querySelector('.copied');
+  badge.classList.add('show');
+  setTimeout(() => badge.classList.remove('show'), 2000);
+}
+
+// Copy code block
+function copyCode(btn) {
+  const block = btn.closest('.code-block');
+  const code = block.querySelector('.code-body').textContent;
+  navigator.clipboard.writeText(code.trim());
+  btn.textContent = 'Copied!';
+  setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+}
+
+// Intersection Observer for fade-in animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// Animate benchmark bars on scroll
+const benchObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const bars = entry.target.querySelectorAll('.bench-bar');
+      bars.forEach(bar => {
+        const target = bar.getAttribute('data-target');
+        if (target) {
+          setTimeout(() => {
+            bar.style.width = target + '%';
+          }, 200);
+        }
+      });
+      benchObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.2 });
+
+document.querySelectorAll('.bench-row').forEach(row => benchObserver.observe(row));
+
+// Smooth scroll for nav links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function (e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+// Subtle parallax on glow orbs
+let ticking = false;
+window.addEventListener('scroll', () => {
+  if (!ticking) {
+    requestAnimationFrame(() => {
+      const scrollY = window.scrollY;
+      const orbs = document.querySelectorAll('.glow-orb');
+      orbs.forEach((orb, i) => {
+        const speed = i === 0 ? 0.15 : 0.1;
+        orb.style.transform = `translateY(${scrollY * speed}px)`;
+      });
+      ticking = false;
+    });
+    ticking = true;
+  }
+});
+</script>
+
+</body>
+</html>
