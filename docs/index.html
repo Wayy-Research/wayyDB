@@ -146,7 +146,7 @@ nav .container{display:flex;align-items:center;justify-content:space-between}
 .terminal-dot:nth-child(2){background:#fbbf24}
 .terminal-dot:nth-child(3){background:#34d399}
 .terminal-title{flex:1;text-align:center;font-size:.75rem;color:var(--text-muted);font-family:var(--mono)}
-.terminal-body{padding:24px;font-family:var(--mono);font-size:.85rem;line-height:2;min-height:220px}
+.terminal-body{padding:24px;font-family:var(--mono);font-size:.85rem;line-height:2;min-height:220px;white-space:pre-wrap}
 .terminal-line{display:flex;white-space:nowrap;overflow:hidden}
 .terminal-line .prompt-char{color:var(--accent);margin-right:8px;user-select:none}
 .terminal-line .comment{color:var(--text-muted);font-style:italic}
@@ -171,7 +171,7 @@ nav .container{display:flex;align-items:center;justify-content:space-between}
 .code-copy{padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;
   color:var(--text-muted);font-size:.75rem;cursor:pointer;font-family:var(--mono);transition:all .2s}
 .code-copy:hover{border-color:var(--text-muted);color:var(--text-primary)}
-.code-body{padding:24px;font-family:var(--mono);font-size:.85rem;line-height:1.8;overflow-x:auto}
+.code-body{padding:24px;font-family:var(--mono);font-size:.85rem;line-height:1.8;overflow-x:auto;white-space:pre}
 .code-body .kw{color:var(--purple)}
 .code-body .fn{color:var(--accent)}
 .code-body .str{color:var(--green)}
@@ -445,8 +445,7 @@ footer .container{display:flex;flex-direction:column;align-items:center;gap:16px
           <span class="code-lang">python</span>
           <button class="code-copy" onclick="copyCode(this)">Copy</button>
         </div>
-        <div class="code-body">
-<span class="kw">import</span> <span class="var">wayy_db</span> <span class="kw">as</span> <span class="var">wdb</span>
+        <div class="code-body"><span class="kw">import</span> <span class="var">wayy_db</span> <span class="kw">as</span> <span class="var">wdb</span>
 
 <span class="comment"># Create a table from a dict</span>
 <span class="var">trades</span> <span class="op">=</span> <span class="fn">wdb.from_dict</span>({
@@ -463,8 +462,7 @@ footer .container{display:flex;flex-direction:column;align-items:center;gap:16px
 )
 
 <span class="comment"># SIMD-accelerated aggregation</span>
-<span class="var">avg_price</span> <span class="op">=</span> <span class="fn">wdb.ops.avg</span>(trades, <span class="str">"price"</span>)
-        </div>
+<span class="var">avg_price</span> <span class="op">=</span> <span class="fn">wdb.ops.avg</span>(trades, <span class="str">"price"</span>)</div>
       </div>
     </div>
   </div>
