@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>wayyDB - The Fastest Time-Series Database for Python</title>
 <meta name="description" content="C++20 columnar TSDB with Python bindings. 58x faster than pandas on as-of joins. SIMD-accelerated. Real-time streaming.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='28' y2='28'%3E%3Cstop stop-color='%230ea5e9'/%3E%3Cstop offset='1' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='28' height='28' rx='6' fill='url(%23g)'/%3E%3Cpath d='M7 20L10.5 8h2l2 7 2-7h2L22 20h-2.5l-2-7.5-2.2 7.5h-1.6l-2.2-7.5-2 7.5H7z' fill='white'/%3E%3C/svg%3E">
+<meta property="og:title" content="wayyDB — The Fastest Time-Series Database for Python">
+<meta property="og:description" content="C++20 columnar engine. 58x faster than pandas on as-of joins. SIMD aggregations. Real-time streaming. pip install wayy-db.">
+<meta property="og:url" content="https://wayydb.com">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="wayyDB — 58x faster than pandas">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -30,7 +37,7 @@
   --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 }
 
-@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap')}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 body{font-family:var(--sans);background:var(--bg-deep);color:var(--text-primary);line-height:1.6;overflow-x:hidden}
@@ -160,7 +167,7 @@ nav .container{display:flex;align-items:center;justify-content:space-between}
 
 /* ─── CODE BLOCK ─── */
 .code-block{background:var(--bg-terminal);border:1px solid var(--border);border-radius:16px;
-  overflow:hidden;max-width:720px;margin:0 auto;position:relative}
+  overflow:hidden;max-width:720px;margin:0 auto;position:relative;min-width:0}
 .code-block::before{content:'';position:absolute;inset:-1px;border-radius:16px;padding:1px;
   background:linear-gradient(180deg,rgba(167,139,250,.15),transparent 40%);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
   -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
@@ -237,7 +244,7 @@ footer .container{display:flex;flex-direction:column;align-items:center;gap:16px
 
 /* ─── TWO COL LAYOUT ─── */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
-@media(max-width:900px){.two-col{grid-template-columns:1fr;gap:32px}}
+@media(max-width:900px){.two-col{grid-template-columns:1fr;gap:32px;direction:ltr!important}.two-col>*{direction:ltr!important}}
 
 /* ─── BENCH LEGEND ─── */
 .bench-legend{display:flex;gap:24px;margin-top:16px;justify-content:flex-end}
@@ -435,9 +442,9 @@ footer .container{display:flex;flex-direction:column;align-items:center;gap:16px
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M5.854 4.854a.5.5 0 10-.708-.708l-3.5 3.5a.5.5 0 000 .708l3.5 3.5a.5.5 0 00.708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 01.708-.708l3.5 3.5a.5.5 0 010 .708l-3.5 3.5a.5.5 0 01-.708-.708L13.293 8l-3.147-3.146z"/></svg>
           Python API
         </div>
-        <h2 class="section-title fade-in">Feels like pandas.<br>Runs like C++.</h2>
+        <h2 class="section-title fade-in">Quick Start</h2>
         <p class="section-desc fade-in">
-          Familiar dict-based API for creating tables. Powerful as-of joins that run 58x faster. Zero-copy where possible.
+          From <code style="font-family:var(--mono);color:var(--accent);font-size:inherit">pip install</code> to as-of join in 30 seconds.
         </p>
       </div>
       <div class="code-block fade-in" style="direction:ltr">
@@ -446,23 +453,27 @@ footer .container{display:flex;flex-direction:column;align-items:center;gap:16px
           <button class="code-copy" onclick="copyCode(this)">Copy</button>
         </div>
         <div class="code-body"><span class="kw">import</span> <span class="var">wayy_db</span> <span class="kw">as</span> <span class="var">wdb</span>
+<span class="kw">import</span> <span class="var">numpy</span> <span class="kw">as</span> <span class="var">np</span>
 
-<span class="comment"># Create a table from a dict</span>
+<span class="comment"># Create trades table from numpy arrays</span>
 <span class="var">trades</span> <span class="op">=</span> <span class="fn">wdb.from_dict</span>({
-    <span class="str">"ts"</span>: timestamps,
-    <span class="str">"symbol"</span>: symbols,
-    <span class="str">"price"</span>: prices,
-}, <span class="var">sorted_by</span><span class="op">=</span><span class="str">"ts"</span>)
+    <span class="str">"timestamp"</span>: np.array([<span class="num">1000</span>, <span class="num">2000</span>, <span class="num">3000</span>], <span class="var">dtype</span><span class="op">=</span>np.int64),
+    <span class="str">"symbol"</span>: np.array([<span class="num">0</span>, <span class="num">1</span>, <span class="num">0</span>], <span class="var">dtype</span><span class="op">=</span>np.uint32),
+    <span class="str">"price"</span>: np.array([<span class="num">150.25</span>, <span class="num">380.50</span>, <span class="num">151.00</span>]),
+}, <span class="var">name</span><span class="op">=</span><span class="str">"trades"</span>, <span class="var">sorted_by</span><span class="op">=</span><span class="str">"timestamp"</span>)
 
-<span class="comment"># As-of join -- 58x faster than pandas</span>
-<span class="var">result</span> <span class="op">=</span> <span class="fn">wdb.ops.aj</span>(
-    trades, quotes,
-    <span class="var">on</span><span class="op">=</span>[<span class="str">"symbol"</span>],
-    <span class="var">as_of</span><span class="op">=</span><span class="str">"ts"</span>
-)
+<span class="comment"># As-of join — O(n log m)</span>
+<span class="var">result</span> <span class="op">=</span> <span class="fn">wdb.ops.aj</span>(trades, quotes, <span class="var">on</span><span class="op">=</span>[<span class="str">"symbol"</span>], <span class="var">as_of</span><span class="op">=</span><span class="str">"timestamp"</span>)
 
-<span class="comment"># SIMD-accelerated aggregation</span>
-<span class="var">avg_price</span> <span class="op">=</span> <span class="fn">wdb.ops.avg</span>(trades, <span class="str">"price"</span>)</div>
+<span class="comment"># Zero-copy NumPy (no data copied!)</span>
+<span class="var">prices</span> <span class="op">=</span> trades[<span class="str">"price"</span>].<span class="fn">to_numpy</span>()
+
+<span class="comment"># SIMD-accelerated aggregations</span>
+<span class="var">avg_price</span> <span class="op">=</span> <span class="fn">wdb.ops.avg</span>(trades[<span class="str">"price"</span>])
+
+<span class="comment"># Window functions</span>
+<span class="var">mavg</span> <span class="op">=</span> <span class="fn">wdb.ops.mavg</span>(trades[<span class="str">"price"</span>], <span class="var">window</span><span class="op">=</span><span class="num">20</span>)
+<span class="var">ema</span> <span class="op">=</span> <span class="fn">wdb.ops.ema</span>(trades[<span class="str">"price"</span>], <span class="var">alpha</span><span class="op">=</span><span class="num">0.1</span>)</div>
       </div>
     </div>
   </div>
