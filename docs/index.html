@@ -178,7 +178,7 @@ nav .container{display:flex;align-items:center;justify-content:space-between}
 .code-copy{padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;
   color:var(--text-muted);font-size:.75rem;cursor:pointer;font-family:var(--mono);transition:all .2s}
 .code-copy:hover{border-color:var(--text-muted);color:var(--text-primary)}
-.code-body{padding:24px;font-family:var(--mono);font-size:.85rem;line-height:1.8;overflow-x:auto;white-space:pre}
+.code-body{padding:24px;font-family:var(--mono);font-size:.85rem;line-height:1.8;overflow-x:auto;white-space:pre;margin:0}
 .code-body .kw{color:var(--purple)}
 .code-body .fn{color:var(--accent)}
 .code-body .str{color:var(--green)}
@@ -452,7 +452,7 @@ footer .container{display:flex;flex-direction:column;align-items:center;gap:16px
           <span class="code-lang">python</span>
           <button class="code-copy" onclick="copyCode(this)">Copy</button>
         </div>
-        <div class="code-body"><span class="kw">import</span> <span class="var">wayy_db</span> <span class="kw">as</span> <span class="var">wdb</span>
+        <pre class="code-body"><code><span class="kw">import</span> <span class="var">wayy_db</span> <span class="kw">as</span> <span class="var">wdb</span>
 <span class="kw">import</span> <span class="var">numpy</span> <span class="kw">as</span> <span class="var">np</span>
 
 <span class="comment"># Create trades table from numpy arrays</span>
@@ -473,7 +473,7 @@ footer .container{display:flex;flex-direction:column;align-items:center;gap:16px
 
 <span class="comment"># Window functions</span>
 <span class="var">mavg</span> <span class="op">=</span> <span class="fn">wdb.ops.mavg</span>(trades[<span class="str">"price"</span>], <span class="var">window</span><span class="op">=</span><span class="num">20</span>)
-<span class="var">ema</span> <span class="op">=</span> <span class="fn">wdb.ops.ema</span>(trades[<span class="str">"price"</span>], <span class="var">alpha</span><span class="op">=</span><span class="num">0.1</span>)</div>
+<span class="var">ema</span> <span class="op">=</span> <span class="fn">wdb.ops.ema</span>(trades[<span class="str">"price"</span>], <span class="var">alpha</span><span class="op">=</span><span class="num">0.1</span>)</code></pre>
       </div>
     </div>
   </div>
