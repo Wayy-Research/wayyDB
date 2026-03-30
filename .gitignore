@@ -30,3 +30,4 @@ dist/
 # Playwright
 .playwright-mcp/
 
+build/
