@@ -98,13 +98,7 @@ build-verbosity = 1
 build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp313t-*"
 skip = "*-musllinux_* *-win32 *-manylinux_i686"
 
-# Free-threaded Python 3.13 (no-GIL) configuration
-[tool.cibuildwheel.free-threaded]
-# Enable free-threaded builds on all platforms
-build = "cp313t-*"
-
 [[tool.cibuildwheel.overrides]]
-# For free-threaded builds, ensure we're using the right Python
 select = "cp313t-*"
 inherit.environment = "append"
 
