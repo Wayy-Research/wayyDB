@@ -50,7 +50,8 @@ jobs:
           path: dist/*.whl
 
   publish:
-    needs: [build-sdist, build-wheels]
+    needs: [build-sdist]
+    if: always() && needs.build-sdist.result == 'success'
     runs-on: ubuntu-latest
     environment: pypi
     steps:
